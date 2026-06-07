@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `1.1.5 — Write README.md`**
+> **🎯 Current Focus: `1.2.1 — Implement audio.py with configurable recording`**
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -107,7 +107,7 @@
 
 ---
 
-#### `[ ]` 1.1.5 — Write `README.md`
+#### `[x]` 1.1.5 — Write `README.md`
 **Context:** Documentation for anyone (including future-you) picking up this project.
 **Details:**
 - Project overview and vision (1 paragraph)
