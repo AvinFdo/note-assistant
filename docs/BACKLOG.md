@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `1.1.2 — Create pyproject.toml with pinned dependencies`**
+> **🎯 Current Focus: `1.1.3 — Scaffold package layout`**
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -41,7 +41,7 @@
 
 ---
 
-#### `[ ]` 1.1.2 — Create `pyproject.toml` with pinned dependencies
+#### `[x]` 1.1.2 — Create `pyproject.toml` with pinned dependencies
 **Context:** The current venv was set up with ad-hoc `pip install` commands. There's no record of what versions are installed. Anyone cloning the repo can't reproduce the environment.
 **Details:**
 - Create `pyproject.toml` using the `[project]` table (PEP 621)

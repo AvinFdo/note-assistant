@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "avin-assistant"
+version = "0.1.0"
+description = "Context-aware voice assistant: audio → VAD → transcription → LLM → actions"
+requires-python = ">=3.12"
+dependencies = [
+    "google-genai>=2.8,<3.0",
+    "sounddevice>=0.5,<1.0",
+    "numpy>=2.0,<3.0",
+    "scipy>=1.13,<2.0",
+    "pyyaml>=6.0,<7.0",
+    "rich>=13.0,<14.0",
+    "click>=8.0,<9.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-asyncio", "ruff"]
+
+[project.scripts]
+avin = "assistant.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
