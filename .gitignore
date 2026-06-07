@@ -3,8 +3,10 @@ __pycache__/
 *.pyc
 *.pyo
 *.wav
-data/
-recordings/
+data/*
+!data/.gitkeep
+recordings/*
+!recordings/.gitkeep
 .env
 .DS_Store
 dist/
