@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `1.1.4 — Create config/default.yaml and config.py`**
+> **🎯 Current Focus: `1.1.5 — Write README.md`**
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -90,7 +90,7 @@
 
 ---
 
-#### `[ ]` 1.1.4 — Create `config/default.yaml` and `config.py`
+#### `[x]` 1.1.4 — Create `config/default.yaml` and `config.py`
 **Context:** The old code had hardcoded values for project ID, model name, region, sample rate, and language. Config must be externalized so we can change behavior without editing source code. This is especially important when we deploy to different environments (local vs cloud vs Pi).
 **Details:**
 - Create `config/default.yaml` with the full schema defined in [Section 5 of the Project Brief](file:///Users/avinfernando/.gemini/antigravity/brain/fdc908c9-c3a0-4545-a576-e171e82fdd8f/implementation_plan.md) (GCP settings, model names, audio params, VAD params, memory settings, action modes)
