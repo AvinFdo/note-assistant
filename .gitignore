@@ -1,0 +1,14 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.wav
+data/
+recordings/
+.env
+.DS_Store
+dist/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+*.db
