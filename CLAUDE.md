@@ -19,8 +19,6 @@ One task = one branch = one PR. Keep PRs small and reviewable.
 
 ## Commands
 
-> Scaffolding (pyproject, package, tests) is built in task 1.1.2–1.1.3. Until then these are the *target* commands.
-
 ```bash
 python -m venv venv && source venv/bin/activate
 pip install -e ".[dev]"     # install with dev deps
@@ -29,6 +27,8 @@ ruff check .                 # lint
 ruff format .                # format
 avin --help                  # CLI entry point (built in 1.8.1)
 ```
+
+> **After adding a new module, re-run `pip install -e .` before testing imports.** Editable installs snapshot the module list at install time, so a freshly added file raises `ModuleNotFoundError` until you reinstall — it's not a real bug, don't chase it.
 
 ## Layout (target — see Brief §7)
 
