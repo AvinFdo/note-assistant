@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `1.1.3 — Scaffold package layout`**
+> **🎯 Current Focus: `1.1.4 — Create config/default.yaml and config.py`**
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -71,7 +71,7 @@
 
 ---
 
-#### `[ ]` 1.1.3 — Scaffold package layout
+#### `[x]` 1.1.3 — Scaffold package layout
 **Context:** All source code currently lives as flat scripts in the project root. We need a proper Python package so modules can import each other cleanly and tests can run.
 **Details:**
 - Create the directory structure as defined in [Section 7 of the Project Brief](file:///Users/avinfernando/.gemini/antigravity/brain/fdc908c9-c3a0-4545-a576-e171e82fdd8f/implementation_plan.md):
