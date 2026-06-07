@@ -1,5 +1,9 @@
 # Avin — Personal Assistant Backlog
 
+> [!IMPORTANT]
+> **🎯 Current Focus: `1.1.2 — Create pyproject.toml with pinned dependencies`**
+> Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
+
 > [!NOTE]
 > Each task includes **Context** (why it matters), **Details** (what to implement), and **Done When** (acceptance criteria).
 > Dependencies between tasks are noted where relevant. Tasks within a sub-stage are ordered by dependency.
@@ -13,7 +17,7 @@
 
 ---
 
-#### `[ ]` 1.1.1 — Initialize Git repo and `.gitignore`
+#### `[x]` 1.1.1 — Initialize Git repo and `.gitignore`
 **Context:** The project currently has no version control. We need Git from the start so every change is tracked and we can use branches/PRs.
 **Details:**
 - Run `git init` in `note-assistant/`
