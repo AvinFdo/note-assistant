@@ -1,1 +1,54 @@
-# Default configuration — full schema implemented in task 1.1.4
+# config/default.yaml — all tunables. Override via AVIN_* env vars or AVIN_CONFIG_PATH.
+
+# --- Google Cloud ---
+gcp:
+  project_id: "project-7255c67e-8145-4cdd-ae1"
+  region: "us-central1"
+
+# --- AI Models ---
+models:
+  transcription: "gemini-2.5-flash"    # Model used for audio-to-text
+  reasoning: "gemini-2.5-flash"        # Model used for note/action extraction
+
+# --- Audio ---
+audio:
+  sample_rate: 16000          # Hz — 16kHz is optimal for speech
+  channels: 1                 # Mono — sufficient for speech, saves bandwidth
+  format: "int16"             # 16-bit PCM
+  recordings_dir: "recordings"
+  default_duration: 10        # Seconds for fixed-duration recording (avin listen)
+
+# --- Voice Activity Detection ---
+vad:
+  enabled: true
+  model: "silero"
+  threshold: 0.5              # Confidence threshold (0.0-1.0), higher = less sensitive
+  min_speech_duration_ms: 250 # Minimum speech duration to trigger processing
+  silence_duration_ms: 1500   # Silence duration to consider speech segment complete
+  buffer_duration_s: 3.0      # Rolling buffer size in seconds (captures pre-speech audio)
+
+# --- Context & Memory ---
+memory:
+  db_path: "data/assistant.db"
+  context_window_size: 5      # Number of recent conversations to include in LLM prompt
+  max_context_tokens: 4000    # Approximate token budget for context in the prompt
+
+# --- Actions ---
+actions:
+  confidence_threshold: 0.7   # Actions below this are logged, not executed
+  create_todo:
+    mode: "auto_execute"      # Safe — just creates a to-do item
+  send_email:
+    mode: "confirm_first"     # Dangerous — never auto-send emails
+  add_calendar:
+    mode: "confirm_first"     # Could disrupt schedule
+  research_topic:
+    mode: "auto_execute"      # Safe — just queues for research
+
+# --- Integrations (Stage 2) ---
+integrations:
+  obsidian:
+    vault_path: ""            # Absolute path to Obsidian vault
+    notes_folder: "assistant" # Subfolder within vault for assistant notes
+  google:
+    oauth_credentials_path: "" # Path to OAuth2 client secret JSON
