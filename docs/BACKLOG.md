@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `1.7.3 — Add --continuous and --duration CLI flags`**
+> **🎯 Current Focus: `1.8.1 — Build CLI using click + rich`**
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -379,7 +379,7 @@
 
 ---
 
-#### `[ ]` 1.7.3 — Add `--continuous` and `--duration` CLI flags
+#### `[x]` 1.7.3 — Add `--continuous` and `--duration` CLI flags _(CLI + pipeline unit-tested offline; live end-to-end pending)_
 **Context:** Users should be able to choose between continuous listening and fixed-duration recording.
 **Details:**
 - `avin listen` — default, records for `config.audio.default_duration` seconds (e.g., 10s)
