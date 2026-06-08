@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `1.8.1 — Build CLI using click + rich`**
+> **🎯 Current Focus: `1.8.2 — Write unit tests`**
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -399,7 +399,7 @@
 
 ---
 
-#### `[ ]` 1.8.1 — Build CLI using click + rich
+#### `[x]` 1.8.1 — Build CLI using click + rich
 **Context:** The current entry point is a bare `main.py` with `argparse`. We need a proper CLI with subcommands, colors, and structured output.
 **Details:**
 - Use `click` for command structure and argument parsing

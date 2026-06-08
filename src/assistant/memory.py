@@ -347,6 +347,78 @@ class Memory:
             created_at=row["created_at"],
         )
 
+    def get_conversation(self, conversation_id: str) -> Conversation | None:
+        """Return a single conversation by *conversation_id*, or ``None`` if not found."""
+        row = self._conn.execute(
+            """
+            SELECT id, started_at, ended_at, transcript, audio_path, created_at
+            FROM conversations
+            WHERE id = ?
+            """,
+            (conversation_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return Conversation(
+            id=row["id"],
+            started_at=row["started_at"],
+            ended_at=row["ended_at"],
+            transcript=row["transcript"],
+            audio_path=row["audio_path"],
+            created_at=row["created_at"],
+        )
+
+    def get_notes_for_conversation(self, conversation_id: str) -> list[Note]:
+        """Return all notes linked to *conversation_id*, newest first."""
+        rows = self._conn.execute(
+            """
+            SELECT id, conversation_id, summary, is_noteworthy, created_at
+            FROM notes
+            WHERE conversation_id = ?
+            ORDER BY created_at DESC
+            """,
+            (conversation_id,),
+        ).fetchall()
+        return [
+            Note(
+                id=row["id"],
+                conversation_id=row["conversation_id"],
+                summary=row["summary"],
+                is_noteworthy=bool(row["is_noteworthy"]),
+                created_at=row["created_at"],
+            )
+            for row in rows
+        ]
+
+    def get_actions_for_conversation(self, conversation_id: str) -> list[Action]:
+        """Return all actions linked to *conversation_id*, newest first."""
+        rows = self._conn.execute(
+            """
+            SELECT id, conversation_id, intent, details, status,
+                   execution_mode, executed_at, created_at
+            FROM actions
+            WHERE conversation_id = ?
+            ORDER BY created_at DESC
+            """,
+            (conversation_id,),
+        ).fetchall()
+        return [self._row_to_action(row) for row in rows]
+
+    def get_action(self, action_id: str) -> Action | None:
+        """Return a single action by *action_id*, or ``None`` if not found."""
+        row = self._conn.execute(
+            """
+            SELECT id, conversation_id, intent, details, status,
+                   execution_mode, executed_at, created_at
+            FROM actions
+            WHERE id = ?
+            """,
+            (action_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return self._row_to_action(row)
+
     # ------------------------------------------------------------------
     # Context window (key-value store)
     # ------------------------------------------------------------------

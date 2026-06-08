@@ -434,3 +434,79 @@ def test_assemble_context_get_recent_actions_limit(mem: Memory) -> None:
     assert len(actions) == 10
     # Should be newest-first
     assert actions[0].details["task"] == "task 14"
+
+
+# ---------------------------------------------------------------------------
+# New read helpers (get_conversation, get_notes_for_conversation,
+# get_actions_for_conversation, get_action)
+# ---------------------------------------------------------------------------
+
+
+def test_get_conversation_found(mem: Memory) -> None:
+    """get_conversation returns the correct Conversation when id exists."""
+    cid = mem.save_conversation("hello replay", audio_path="/tmp/r.wav")
+    result = mem.get_conversation(cid)
+    assert result is not None
+    assert isinstance(result, Conversation)
+    assert result.id == cid
+    assert result.transcript == "hello replay"
+    assert result.audio_path == "/tmp/r.wav"
+
+
+def test_get_conversation_not_found(mem: Memory) -> None:
+    """get_conversation returns None for an unknown id."""
+    assert mem.get_conversation("nonexistent-id") is None
+
+
+def test_get_notes_for_conversation(mem: Memory) -> None:
+    """get_notes_for_conversation returns only notes linked to the given conversation."""
+    cid1 = mem.save_conversation("conv1")
+    cid2 = mem.save_conversation("conv2")
+    mem.save_note(cid1, "note for conv1")
+    mem.save_note(cid2, "note for conv2")
+
+    notes = mem.get_notes_for_conversation(cid1)
+    assert len(notes) == 1
+    assert notes[0].summary == "note for conv1"
+    assert notes[0].conversation_id == cid1
+
+
+def test_get_notes_for_conversation_empty(mem: Memory) -> None:
+    """get_notes_for_conversation returns [] when no notes exist for that conversation."""
+    cid = mem.save_conversation("lonely conv")
+    assert mem.get_notes_for_conversation(cid) == []
+
+
+def test_get_actions_for_conversation(mem: Memory) -> None:
+    """get_actions_for_conversation returns only actions linked to the given conversation."""
+    cid1 = mem.save_conversation("conv1")
+    cid2 = mem.save_conversation("conv2")
+    mem.save_action(cid1, "create_todo", {"task": "action1"}, "auto_execute")
+    mem.save_action(cid2, "send_email", {"recipient": "x@x.com"}, "confirm_first")
+
+    actions = mem.get_actions_for_conversation(cid1)
+    assert len(actions) == 1
+    assert actions[0].intent == "create_todo"
+
+
+def test_get_actions_for_conversation_empty(mem: Memory) -> None:
+    """get_actions_for_conversation returns [] when no actions exist for that conversation."""
+    cid = mem.save_conversation("quiet conv")
+    assert mem.get_actions_for_conversation(cid) == []
+
+
+def test_get_action_found(mem: Memory) -> None:
+    """get_action returns the correct Action when action_id exists."""
+    cid = mem.save_conversation("conv")
+    aid = mem.save_action(cid, "create_todo", {"task": "buy milk"}, "auto_execute")
+    result = mem.get_action(aid)
+    assert result is not None
+    assert isinstance(result, Action)
+    assert result.id == aid
+    assert result.intent == "create_todo"
+    assert result.details == {"task": "buy milk"}
+
+
+def test_get_action_not_found(mem: Memory) -> None:
+    """get_action returns None for an unknown action_id."""
+    assert mem.get_action("nonexistent-action") is None
