@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `1.7.2 — Implement continuous capture with speech segmentation`**
+> **🎯 Current Focus: `1.7.3 — Add --continuous and --duration CLI flags`**
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -360,7 +360,7 @@
 
 ---
 
-#### `[ ]` 1.7.2 — Implement continuous capture with speech segmentation
+#### `[x]` 1.7.2 — Implement continuous capture with speech segmentation
 **Context:** Instead of recording for N seconds, the assistant should listen continuously and produce audio segments whenever a speech-to-silence transition occurs.
 **Details:**
 - Add `listen_continuous(callback: Callable[[Path], None])` method to `AudioRecorder`:
@@ -373,7 +373,7 @@
 - The callback is where the rest of the pipeline hooks in (transcribe → brain → actions)
 - Add graceful shutdown on Ctrl+C
 
-**Done when:** Running in continuous mode, speaking a sentence, then going silent produces a WAV file containing the full sentence (including the beginning). Multiple sentences produce multiple files. Ctrl+C exits cleanly.
+**Done when:** Running in continuous mode, speaking a sentence, then going silent produces a WAV file containing the full sentence (including the beginning). Multiple sentences produce multiple files. Ctrl+C exits cleanly. (state machine unit-tested offline; live-mic end-to-end validation pending)
 
 **Depends on:** 1.7.1, 1.2
 
