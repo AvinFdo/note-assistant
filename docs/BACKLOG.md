@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `1.5.1 — Implement brain.py with context-aware prompting`**
+> **🎯 Current Focus: `1.5.2 — Implement relevance filter`**
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -246,7 +246,7 @@
 
 ---
 
-#### `[ ]` 1.5.1 — Implement `brain.py` with context-aware prompting
+#### `[x]` 1.5.1 — Implement `brain.py` with context-aware prompting
 **Context:** The old `llm.py` sent each transcript in isolation with no history. The new `brain.py` must assemble context from memory and use Gemini's structured output mode.
 **Details:**
 - Create `Brain` class that takes `Memory` and `config` as dependencies
