@@ -1,5 +1,7 @@
 # Avin — Personal Voice Assistant
 
+[![CI](https://github.com/AvinFdo/note-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/AvinFdo/note-assistant/actions/workflows/ci.yml)
+
 Avin is a context-aware, always-listening voice assistant that captures spoken thoughts, extracts actionable insights, and integrates with your productivity tools. It acts as a second brain — remembering past conversations and routing actions (to-dos, calendar events, emails, notes) to the right place, automatically or with your confirmation.
 
 ---
