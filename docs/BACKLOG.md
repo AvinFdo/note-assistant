@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `1.7.1 — Integrate Silero VAD`**
+> **🎯 Current Focus: `1.7.2 — Implement continuous capture with speech segmentation`**
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -346,7 +346,7 @@
 
 ---
 
-#### `[ ]` 1.7.1 — Integrate Silero VAD
+#### `[x]` 1.7.1 — Integrate Silero VAD
 **Context:** Silero VAD is a lightweight voice activity detector (~2MB PyTorch model) that runs in real-time on CPU. It determines whether each audio frame contains speech or silence.
 **Details:**
 - Add `torch` and `torchaudio` to dependencies (CPU-only build to keep size small)
