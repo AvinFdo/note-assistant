@@ -95,7 +95,7 @@ class TestRecord:
 
         out = recorder.record(1)
 
-        pattern = re.compile(r"recording_\d{8}_\d{6}\.wav")
+        pattern = re.compile(r"recording_\d{8}_\d{6}_\d{6}\.wav")
         assert pattern.fullmatch(out.name), f"Unexpected filename: {out.name}"
 
     def test_wav_is_readable(
