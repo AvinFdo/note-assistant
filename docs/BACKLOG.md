@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `1.4.2 — Implement context retrieval for LLM prompt enrichment`**
+> **🎯 Current Focus: `1.5.1 — Implement brain.py with context-aware prompting`**
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -223,7 +223,7 @@
 
 ---
 
-#### `[ ]` 1.4.2 — Implement context retrieval for LLM prompt enrichment
+#### `[x]` 1.4.2 — Implement context retrieval for LLM prompt enrichment
 **Context:** The LLM needs context from previous conversations to provide continuity. This method assembles the "memory" section of the prompt.
 **Details:**
 - Add method `assemble_context() -> str` to `Memory` class

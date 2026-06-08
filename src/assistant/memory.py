@@ -316,6 +316,20 @@ class Memory:
         ).fetchall()
         return [self._row_to_action(row) for row in rows]
 
+    def get_recent_actions(self, limit: int = 10) -> list[Action]:
+        """Return up to *limit* actions (any status), newest first."""
+        rows = self._conn.execute(
+            """
+            SELECT id, conversation_id, intent, details, status,
+                   execution_mode, executed_at, created_at
+            FROM actions
+            ORDER BY created_at DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [self._row_to_action(row) for row in rows]
+
     @staticmethod
     def _row_to_action(row: sqlite3.Row) -> Action:
         try:
@@ -364,6 +378,101 @@ class Memory:
             "SELECT key, value FROM context_window",
         ).fetchall()
         return {row["key"]: row["value"] for row in rows}
+
+    # ------------------------------------------------------------------
+    # Context assembly for LLM prompt enrichment
+    # ------------------------------------------------------------------
+
+    def assemble_context(self) -> str:
+        """Assemble the "memory" section of the LLM prompt from three sources.
+
+        Format
+        ------
+        The returned string follows the prompt template defined in PROJECT_BRIEF §6::
+
+            CONTEXT (Recent History):
+            - <summary 1>
+            - <summary 2>
+
+            CONTEXT (Known Information):
+            - key: value
+
+            CONTEXT (Pending Actions):
+            - <intent>: <short detail>
+
+        Sources
+        -------
+        1. **Recent History** — last ``config.memory.context_window_size`` noteworthy
+           notes (``is_noteworthy=1``), ordered newest-first.
+        2. **Pending / recent actions** — last 10 actions (any status), newest-first.
+           Each line shows ``intent: <first detail value or raw JSON>``.
+        3. **Known Information** — all key-value pairs from ``context_window`` via
+           :meth:`get_all_context`.
+
+        Truncation
+        ----------
+        If the assembled string exceeds ``config.memory.max_context_tokens * 4``
+        characters (approximate: 1 token ≈ 4 chars), the **oldest history entries**
+        are dropped one-by-one until the string fits within the budget.  Known
+        Information and section headers are always preserved.  Truncation is
+        deterministic: entries are removed from the oldest end of the history list
+        first (the list is ordered newest-first, so we pop from the tail).
+        """
+        cfg = _default_config.memory
+        char_budget = cfg.max_context_tokens * 4
+
+        # 1. Recent noteworthy history
+        rows = self._conn.execute(
+            """
+            SELECT summary
+            FROM notes
+            WHERE is_noteworthy = 1
+            ORDER BY created_at DESC
+            LIMIT ?
+            """,
+            (cfg.context_window_size,),
+        ).fetchall()
+        # history is newest-first; index 0 = newest, last = oldest
+        history: list[str] = [row["summary"] for row in rows]
+
+        # 2. Recent actions (last 10)
+        actions = self.get_recent_actions(limit=10)
+        action_lines: list[str] = []
+        for action in actions:
+            # Provide a short detail string: first value in details dict, or raw JSON
+            if isinstance(action.details, dict) and action.details:
+                short_detail = next(iter(action.details.values()))
+                if not isinstance(short_detail, str):
+                    short_detail = str(short_detail)
+            else:
+                short_detail = str(action.details)
+            action_lines.append(f"{action.intent}: {short_detail}")
+
+        # 3. Known information (key-value context window)
+        ctx = self.get_all_context()
+
+        def _build(hist: list[str]) -> str:
+            history_section = "\n".join(f"- {s}" for s in hist) if hist else "- (none)"
+            info_section = "\n".join(f"- {k}: {v}" for k, v in ctx.items()) if ctx else "- (none)"
+            actions_section = (
+                "\n".join(f"- {line}" for line in action_lines) if action_lines else "- (none)"
+            )
+
+            return (
+                f"CONTEXT (Recent History):\n{history_section}\n\n"
+                f"CONTEXT (Known Information):\n{info_section}\n\n"
+                f"CONTEXT (Pending Actions):\n{actions_section}"
+            )
+
+        result = _build(history)
+
+        # Truncate by dropping oldest history entries until within budget
+        # history[0] = newest, history[-1] = oldest  →  pop from the tail
+        while len(result) > char_budget and history:
+            history.pop()  # remove oldest entry
+            result = _build(history)
+
+        return result
 
     # ------------------------------------------------------------------
     # Lifecycle

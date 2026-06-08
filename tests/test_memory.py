@@ -280,3 +280,157 @@ def test_set_context_upsert_updates_timestamp(mem: Memory) -> None:
     ts2 = row2["updated_at"]
 
     assert ts2 >= ts1  # timestamp updated on upsert
+
+
+# ---------------------------------------------------------------------------
+# assemble_context
+# ---------------------------------------------------------------------------
+
+
+def test_assemble_context_empty_db(mem: Memory) -> None:
+    """Fresh database must not crash and must return a valid structured string."""
+    result = mem.assemble_context()
+    assert isinstance(result, str)
+    assert "CONTEXT (Recent History):" in result
+    assert "CONTEXT (Known Information):" in result
+    assert "CONTEXT (Pending Actions):" in result
+    # All sections should gracefully show (none) when empty
+    assert "(none)" in result
+
+
+def test_assemble_context_contains_history(mem: Memory) -> None:
+    """Noteworthy note summaries must appear in the Recent History section."""
+    cid = mem.save_conversation("conv")
+    mem.save_note(cid, "Project kickoff meeting notes", is_noteworthy=True)
+    result = mem.assemble_context()
+    assert "Project kickoff meeting notes" in result
+
+
+def test_assemble_context_excludes_non_noteworthy(mem: Memory) -> None:
+    """Notes with is_noteworthy=False must NOT appear in Recent History."""
+    cid = mem.save_conversation("conv")
+    mem.save_note(cid, "trivial chatter", is_noteworthy=False)
+    mem.save_note(cid, "important update", is_noteworthy=True)
+    result = mem.assemble_context()
+    assert "trivial chatter" not in result
+    assert "important update" in result
+
+
+def test_assemble_context_respects_context_window_size(mem: Memory) -> None:
+    """Only config.memory.context_window_size noteworthy notes should appear."""
+    from assistant.config import config
+
+    limit = config.memory.context_window_size  # 5 by default
+
+    cid = mem.save_conversation("conv")
+    # Insert more notes than the window size
+    for i in range(limit + 3):
+        mem.save_note(cid, f"note summary {i}", is_noteworthy=True)
+
+    result = mem.assemble_context()
+    history_block = result.split("CONTEXT (Known Information):")[0]
+    # Count bullet points in the history section
+    bullet_count = history_block.count("\n- ")
+    assert bullet_count == limit
+
+
+def test_assemble_context_contains_known_information(mem: Memory) -> None:
+    """Context key-value pairs must appear in Known Information section."""
+    mem.set_context("user_name", "Avin")
+    mem.set_context("current_project", "Note Assistant")
+    result = mem.assemble_context()
+    assert "user_name: Avin" in result
+    assert "current_project: Note Assistant" in result
+
+
+def test_assemble_context_contains_pending_actions(mem: Memory) -> None:
+    """Recent actions must appear in the Pending Actions section."""
+    cid = mem.save_conversation("conv")
+    mem.save_action(cid, "create_todo", {"task": "buy milk"}, "auto_execute")
+    result = mem.assemble_context()
+    assert "create_todo" in result
+    assert "buy milk" in result
+
+
+def test_assemble_context_truncation_drops_oldest(
+    mem: Memory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When history exceeds max_context_tokens, the OLDEST entries are dropped first.
+
+    We monkeypatch config.memory.max_context_tokens to a value that fits exactly
+    one 200-char note (plus the fixed skeleton overhead) but not three.  After
+    truncation the most-recent note must still be present, and the oldest must not.
+
+    The empty-template skeleton is ~110 chars (~28 tokens).  We set the budget to
+    100 tokens (400 chars) and use 200-char summaries, so:
+      - skeleton + 3 summaries ≈ 110 + 3×202 = 716 chars → over budget
+      - skeleton + 1 summary  ≈ 110 + 202 = 312 chars → within 400-char budget
+    Truncation must preserve the newest entry and drop the oldest.
+    """
+    from assistant.config import config
+
+    token_budget = 100  # → char budget = 400
+    monkeypatch.setattr(config.memory, "max_context_tokens", token_budget)
+    # Also make sure the window is large enough to initially load all three notes
+    monkeypatch.setattr(config.memory, "context_window_size", 10)
+
+    cid = mem.save_conversation("conv")
+    oldest_summary = "A" * 200  # inserted first → oldest
+    middle_summary = "B" * 200
+    newest_summary = "C" * 200  # inserted last → newest
+
+    mem.save_note(cid, oldest_summary, is_noteworthy=True)
+    mem.save_note(cid, middle_summary, is_noteworthy=True)
+    mem.save_note(cid, newest_summary, is_noteworthy=True)
+
+    result = mem.assemble_context()
+
+    char_budget = token_budget * 4
+    assert len(result) <= char_budget, (
+        f"Result length {len(result)} exceeds char budget {char_budget}"
+    )
+    # The newest entry must be retained
+    assert newest_summary in result
+    # The oldest entry must have been dropped
+    assert oldest_summary not in result
+
+
+def test_assemble_context_truncation_preserves_known_info(
+    mem: Memory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Known Information section must survive truncation of history entries.
+
+    Even after all history entries are dropped, the Known Information section
+    (which is always preserved) must still be present.
+    """
+    from assistant.config import config
+
+    # Token budget of 50 (200 chars) is below even a single 200-char note + skeleton,
+    # but must still hold the skeleton with Known Information intact.
+    # The skeleton alone with (none) bullets is ~110 chars, so set budget to 60 (240 chars)
+    # which is enough for the skeleton but not for any 200-char history entries.
+    token_budget = 60  # → char budget = 240 chars
+    monkeypatch.setattr(config.memory, "max_context_tokens", token_budget)
+    monkeypatch.setattr(config.memory, "context_window_size", 10)
+
+    cid = mem.save_conversation("conv")
+    for _ in range(3):
+        mem.save_note(cid, "X" * 200, is_noteworthy=True)
+
+    mem.set_context("user_name", "Avin")
+
+    result = mem.assemble_context()
+    assert "CONTEXT (Known Information):" in result
+    assert "user_name: Avin" in result
+
+
+def test_assemble_context_get_recent_actions_limit(mem: Memory) -> None:
+    """get_recent_actions helper must respect its limit parameter."""
+    cid = mem.save_conversation("conv")
+    for i in range(15):
+        mem.save_action(cid, "create_todo", {"task": f"task {i}"}, "auto_execute")
+
+    actions = mem.get_recent_actions(limit=10)
+    assert len(actions) == 10
+    # Should be newest-first
+    assert actions[0].details["task"] == "task 14"
