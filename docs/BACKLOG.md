@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `1.6.1 — Create abstract Action base class and registry`**
+> **🎯 Current Focus: `1.6.2 — Implement mock actions with SQLite persistence`**
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -298,7 +298,7 @@
 
 ---
 
-#### `[ ]` 1.6.1 — Create abstract `Action` base class and registry
+#### `[x]` 1.6.1 — Create abstract `Action` base class and registry
 **Context:** We need a pluggable action system. Each action type (todo, email, calendar, research) implements the same interface, and a router dispatches to the right one.
 **Details:**
 - `base.py`:
