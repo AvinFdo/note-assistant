@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `1.6.2 — Implement mock actions with SQLite persistence`**
+> **🎯 Current Focus: `1.7.1 — Integrate Silero VAD`**
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -321,7 +321,7 @@
 
 ---
 
-#### `[ ]` 1.6.2 — Implement mock actions with SQLite persistence
+#### `[x]` 1.6.2 — Implement mock actions with SQLite persistence
 **Context:** In Stage 1, actions don't connect to real APIs. They log to console and update their status in SQLite.
 **Details:**
 - `todo.py`: `CreateTodoAction` — prints `[TODO] {task}`, updates action status to "executed"

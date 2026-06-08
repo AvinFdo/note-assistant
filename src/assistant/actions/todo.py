@@ -1,7 +1,8 @@
 """CreateTodoAction: logs a to-do item (mock in Stage 1, Google Tasks in Stage 2).
 
-Minimal implementation for task 1.6.1 — routing and registry wiring.
-Task 1.6.2 adds printing, SQLite status persistence, and confirmation flow.
+In Stage 1 the action prints to the console and returns a result message; in Stage 2
+this will instead call the Google Tasks API.  SQLite status persistence is handled by
+route_action in __init__.py which receives the action_id returned by memory.save_action.
 """
 
 from assistant.actions.base import Action
@@ -13,8 +14,9 @@ class CreateTodoAction(Action):
     intent = "create_todo"
 
     def execute(self, details: dict) -> str:
-        """Return a human-readable confirmation that the todo was created."""
+        """Print the mock todo to the console and return a confirmation message."""
         task = details.get("task", "")
+        print(f"[TODO] {task}")
         return f"[TODO] {task}"
 
     def describe(self, details: dict) -> str:

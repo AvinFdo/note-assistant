@@ -13,13 +13,25 @@ Routing logic
 to 'log_only' for unknown intents — safe default).  It then dispatches:
 
 - ``auto_execute``   — call action.execute() immediately, return its message.
+                       If *action_id* is provided, status is updated to "executed".
 - ``confirm_first``  — call action.describe() and invoke the ``confirm`` callback.
-  If ``confirm`` is None, treat as NOT confirmed (never auto-execute, especially for
-  send_email).  If confirm returns True, execute; False means dismissed.
-- ``log_only``       — do NOT execute; return a "logged" message.
+  Status transitions:
+    - ``confirm`` is None  → action remains "pending" (awaiting confirmation); not executed.
+    - ``confirm`` returns False → status updated to "dismissed"; not executed.
+    - ``confirm`` returns True  → execute(); status updated to "executed".
+  GUARDRAIL: never auto-execute when confirm is absent — critical path for send_email.
+- ``log_only``       — do NOT execute; if *action_id* is provided, status is updated to
+                       "logged".
 
 The ``confirm`` callback is injectable so tests can pass a stub and the CLI can pass a
 real y/n prompt without this module ever calling input() directly.
+
+SQLite persistence
+------------------
+When the optional *action_id* parameter is supplied (the UUID returned by
+``memory.save_action``), ``route_action`` calls ``memory.update_action_status`` to
+persist the final status of the action row.  Passing ``action_id=None`` (the default)
+skips all DB writes — existing callers from task 1.6.1 continue to work unchanged.
 """
 
 from __future__ import annotations
@@ -70,19 +82,24 @@ def _get_mode(intent: str) -> str:
 def route_action(
     action_item: ActionItem,
     memory: Memory,
+    action_id: str | None = None,
     confirm: Callable[[str], bool] | None = None,
 ) -> str:
     """Look up the action for *action_item.intent* and dispatch based on config mode.
 
     Args:
         action_item: The :class:`~assistant.brain.ActionItem` to route.
-        memory:      The :class:`~assistant.memory.Memory` instance (reserved for
-                     1.6.2 status persistence; accepted here for API stability).
+        memory:      The :class:`~assistant.memory.Memory` instance used for status
+                     persistence when *action_id* is provided.
+        action_id:   Optional UUID string returned by ``memory.save_action``.  When
+                     supplied, the corresponding DB row's status is updated after
+                     routing.  Pass ``None`` (default) to skip all DB writes — existing
+                     callers remain unaffected.
         confirm:     Optional callback ``(description: str) -> bool``.  When the mode
                      is ``confirm_first``, this callback is called with a human-readable
                      description.  If *None*, confirmation is treated as NOT given —
-                     the action is never executed.  Tests inject a stub; the CLI injects
-                     a real prompt.
+                     the action is never executed (status remains "pending").  Tests
+                     inject a stub; the CLI injects a real prompt.
 
     Returns:
         A human-readable result / status message string.
@@ -103,19 +120,34 @@ def route_action(
     mode = _get_mode(intent)
 
     if mode == "auto_execute":
-        return action.execute(details)
+        result = action.execute(details)
+        if action_id is not None:
+            memory.update_action_status(action_id, "executed")
+        return result
 
     if mode == "confirm_first":
         description = action.describe(details)
         if confirm is None:
             # GUARDRAIL: never auto-execute when confirm is absent —
             # this is the critical path that protects send_email.
-            return f"Action '{intent}' awaiting confirmation — not executed. Description: {description}"
+            # Status remains "pending" (awaiting confirmation) — no DB update.
+            return (
+                f"Action '{intent}' awaiting confirmation — not executed. "
+                f"Description: {description}"
+            )
         if confirm(description):
-            return action.execute(details)
+            result = action.execute(details)
+            if action_id is not None:
+                memory.update_action_status(action_id, "executed")
+            return result
+        # confirm returned False — user dismissed the action
+        if action_id is not None:
+            memory.update_action_status(action_id, "dismissed")
         return f"Action '{intent}' dismissed — not confirmed."
 
     # log_only (and any unrecognised future mode falls through safely)
+    if action_id is not None:
+        memory.update_action_status(action_id, "logged")
     return f"Action '{intent}' logged — not executed (mode: {mode})."
 
 
