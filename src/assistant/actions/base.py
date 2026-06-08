@@ -1,4 +1,5 @@
 """Abstract Action base class: every action type implements execute() and describe() — implemented in task 1.6.1."""
+
 from abc import ABC, abstractmethod
 
 

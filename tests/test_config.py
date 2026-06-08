@@ -11,6 +11,7 @@ from assistant.config import Config, load_config
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _write_yaml(tmp_path: Path, data: dict) -> Path:
     p = tmp_path / "config.yaml"
     p.write_text(yaml.dump(data))
@@ -20,11 +21,21 @@ def _write_yaml(tmp_path: Path, data: dict) -> Path:
 _MINIMAL_YAML = {
     "gcp": {"project_id": "test-project", "region": "us-east1"},
     "models": {"transcription": "gemini-test", "reasoning": "gemini-test"},
-    "audio": {"sample_rate": 8000, "channels": 1, "format": "int16",
-               "recordings_dir": "rec", "default_duration": 5},
-    "vad": {"enabled": False, "model": "silero", "threshold": 0.8,
-             "min_speech_duration_ms": 100, "silence_duration_ms": 500,
-             "buffer_duration_s": 1.0},
+    "audio": {
+        "sample_rate": 8000,
+        "channels": 1,
+        "format": "int16",
+        "recordings_dir": "rec",
+        "default_duration": 5,
+    },
+    "vad": {
+        "enabled": False,
+        "model": "silero",
+        "threshold": 0.8,
+        "min_speech_duration_ms": 100,
+        "silence_duration_ms": 500,
+        "buffer_duration_s": 1.0,
+    },
     "memory": {"db_path": ":memory:", "context_window_size": 3, "max_context_tokens": 1000},
     "actions": {
         "confidence_threshold": 0.9,
@@ -43,6 +54,7 @@ _MINIMAL_YAML = {
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 def test_load_from_yaml(tmp_path: Path) -> None:
     p = _write_yaml(tmp_path, _MINIMAL_YAML)
@@ -116,5 +128,6 @@ def test_empty_yaml_uses_defaults(tmp_path: Path) -> None:
 
 def test_singleton_is_config_instance() -> None:
     from assistant.config import config
+
     assert isinstance(config, Config)
     assert config.gcp.project_id != ""  # loaded from real default.yaml

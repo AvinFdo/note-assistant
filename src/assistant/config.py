@@ -66,8 +66,12 @@ class ActionsConfig:
     confidence_threshold: float = 0.7
     create_todo: ActionModeConfig = field(default_factory=lambda: ActionModeConfig("auto_execute"))
     send_email: ActionModeConfig = field(default_factory=lambda: ActionModeConfig("confirm_first"))
-    add_calendar: ActionModeConfig = field(default_factory=lambda: ActionModeConfig("confirm_first"))
-    research_topic: ActionModeConfig = field(default_factory=lambda: ActionModeConfig("auto_execute"))
+    add_calendar: ActionModeConfig = field(
+        default_factory=lambda: ActionModeConfig("confirm_first")
+    )
+    research_topic: ActionModeConfig = field(
+        default_factory=lambda: ActionModeConfig("auto_execute")
+    )
 
 
 @dataclass
@@ -117,7 +121,7 @@ def _apply_env_overrides(data: dict) -> None:
         for section in _SECTIONS:
             prefix = section + "_"
             if rest.startswith(prefix):
-                key = rest[len(prefix):]
+                key = rest[len(prefix) :]
                 data.setdefault(section, {})[key] = value
                 break
 
