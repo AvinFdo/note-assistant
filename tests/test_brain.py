@@ -81,7 +81,7 @@ def test_happy_path_high_confidence(mem: Memory) -> None:
     )
 
     brain = Brain(memory=mem, client=client)
-    result = brain.process("I need to buy groceries today.")
+    result = brain.process("I need to buy groceries today when I finish work this evening.")
 
     # ProcessingResult shape
     assert isinstance(result, ProcessingResult)
@@ -97,7 +97,7 @@ def test_happy_path_high_confidence(mem: Memory) -> None:
     # Persistence — conversation saved
     convs = mem.get_recent_conversations()
     assert len(convs) == 1
-    assert convs[0].transcript == "I need to buy groceries today."
+    assert convs[0].transcript == "I need to buy groceries today when I finish work this evening."
 
     # Persistence — note saved (noteworthy)
     notes = mem.get_recent_notes()
@@ -133,7 +133,7 @@ def test_low_confidence_action_not_pending(mem: Memory) -> None:
     )
 
     brain = Brain(memory=mem, client=client)
-    result = brain.process("Maybe I should email Alice about that.")
+    result = brain.process("Maybe I should send an email to Alice about that project update.")
 
     # Action appears in result
     assert len(result.actions) == 1
@@ -156,11 +156,18 @@ def test_low_confidence_action_not_pending(mem: Memory) -> None:
 
 
 def test_not_noteworthy_no_note_saved(mem: Memory) -> None:
-    """When is_noteworthy=False, conversation is persisted but no note is created."""
-    client = _make_mock_client(_make_response(is_noteworthy=False, summary="", actions=[]))
+    """When is_noteworthy=False, conversation is persisted but no note or actions are created."""
+    action_payload = {
+        "intent": "create_todo",
+        "confidence": 0.9,
+        "details": {"task": "irrelevant"},
+    }
+    client = _make_mock_client(
+        _make_response(is_noteworthy=False, summary="", actions=[action_payload])
+    )
 
     brain = Brain(memory=mem, client=client)
-    result = brain.process("Hey, how's it going?")
+    result = brain.process("Hey, how's it going today? Anything interesting happen recently?")
 
     assert result.is_noteworthy is False
 
@@ -171,6 +178,10 @@ def test_not_noteworthy_no_note_saved(mem: Memory) -> None:
     # No note
     notes = mem.get_recent_notes()
     assert notes == []
+
+    # No actions persisted when not noteworthy
+    all_actions = mem.get_recent_actions(limit=10)
+    assert all_actions == []
 
 
 # ---------------------------------------------------------------------------
@@ -189,7 +200,7 @@ def test_context_influence_prior_note_in_prompt(mem: Memory) -> None:
     client = _make_mock_client(_make_response(is_noteworthy=False, summary="", actions=[]))
 
     brain = Brain(memory=mem, client=client)
-    brain.process("What did we discuss earlier?")
+    brain.process("What did we discuss earlier about the quarterly report work?")
 
     # Capture the prompt passed to generate_content
     call_args = client.models.generate_content.call_args
@@ -216,7 +227,7 @@ def test_malformed_json_raises_brain_error(mem: Memory) -> None:
     brain = Brain(memory=mem, client=client)
 
     with pytest.raises(BrainError, match="malformed JSON"):
-        brain.process("Some transcript.")
+        brain.process("Some transcript that has enough words to pass the length filter.")
 
 
 # ---------------------------------------------------------------------------
@@ -240,7 +251,7 @@ def test_execution_mode_send_email_is_confirm_first(mem: Memory) -> None:
     )
 
     brain = Brain(memory=mem, client=client)
-    brain.process("Send Bob an email about the meeting.")
+    brain.process("Please send Bob an email about the upcoming meeting this Thursday afternoon.")
 
     all_actions = mem.get_recent_actions(limit=10)
     assert len(all_actions) == 1
@@ -264,7 +275,7 @@ def test_execution_mode_create_todo_is_auto_execute(mem: Memory) -> None:
     )
 
     brain = Brain(memory=mem, client=client)
-    brain.process("I need to review that pull request.")
+    brain.process("I need to review that pull request before the end of today.")
 
     all_actions = mem.get_recent_actions(limit=10)
     assert len(all_actions) == 1
@@ -299,7 +310,7 @@ def test_mixed_confidence_correct_statuses(mem: Memory) -> None:
     )
 
     brain = Brain(memory=mem, client=client)
-    brain.process("I should call the dentist and book an appointment.")
+    brain.process("I should call the dentist office tomorrow and book an appointment soon.")
 
     pending = mem.get_pending_actions()
     all_actions = mem.get_recent_actions(limit=10)
@@ -313,3 +324,116 @@ def test_mixed_confidence_correct_statuses(mem: Memory) -> None:
     low_conf = [a for a in all_actions if a.intent == "add_calendar"]
     assert len(low_conf) == 1
     assert low_conf[0].status == "low_confidence"
+
+
+# ---------------------------------------------------------------------------
+# Relevance filter: length pre-filter (< min_transcript_words)
+# ---------------------------------------------------------------------------
+
+
+def test_short_transcript_skips_llm(mem: Memory) -> None:
+    """Transcript with fewer words than min_transcript_words never calls generate_content.
+
+    Verifies:
+    - LLM client is NOT called
+    - conversation IS saved for context continuity
+    - no note created
+    - no actions persisted
+    - returns ProcessingResult(is_noteworthy=False)
+    """
+    client = _make_mock_client(_make_response(is_noteworthy=True, summary="Should not appear"))
+
+    brain = Brain(memory=mem, client=client)
+    result = brain.process("Sure thing.")  # 2 words — below threshold of 10
+
+    # LLM must NOT have been called
+    client.models.generate_content.assert_not_called()
+
+    # Result must signal not noteworthy
+    assert result.is_noteworthy is False
+    assert result.summary_note == ""
+    assert result.actions == []
+
+    # Conversation must be saved for context continuity
+    convs = mem.get_recent_conversations()
+    assert len(convs) == 1
+    assert convs[0].transcript == "Sure thing."
+
+    # No note or actions created
+    assert mem.get_recent_notes() == []
+    assert mem.get_recent_actions(limit=10) == []
+
+
+# ---------------------------------------------------------------------------
+# Relevance filter: is_noteworthy=False from LLM — no note, no actions persisted
+# ---------------------------------------------------------------------------
+
+
+def test_llm_not_noteworthy_no_actions_persisted(mem: Memory) -> None:
+    """Long transcript where LLM returns is_noteworthy=False: actions are NOT persisted."""
+    action_payload = {
+        "intent": "create_todo",
+        "confidence": 0.95,
+        "details": {"task": "follow up on report"},
+    }
+    client = _make_mock_client(
+        _make_response(is_noteworthy=False, summary="", actions=[action_payload])
+    )
+
+    brain = Brain(memory=mem, client=client)
+    result = brain.process(
+        "I was thinking about maybe following up on that report we discussed yesterday afternoon."
+    )
+
+    assert result.is_noteworthy is False
+
+    # Conversation is saved
+    convs = mem.get_recent_conversations()
+    assert len(convs) == 1
+
+    # No note
+    assert mem.get_recent_notes() == []
+
+    # No actions persisted when not noteworthy
+    assert mem.get_pending_actions() == []
+    assert mem.get_recent_actions(limit=10) == []
+
+
+# ---------------------------------------------------------------------------
+# Relevance filter: config threshold respected (monkeypatch)
+# ---------------------------------------------------------------------------
+
+
+def test_min_transcript_words_threshold_from_config(
+    mem: Memory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Threshold is read from config.memory.min_transcript_words.
+
+    A transcript at exactly the threshold (10 words) passes; one word below (9) is filtered.
+    Monkeypatches the config value to verify the code reads it dynamically.
+    """
+    import assistant.brain as brain_mod
+    from assistant.config import MemoryConfig
+
+    # Build a new config with threshold=5 and monkeypatch it
+    new_memory_cfg = MemoryConfig(
+        db_path=":memory:",
+        context_window_size=5,
+        max_context_tokens=4000,
+        min_transcript_words=5,
+    )
+    monkeypatch.setattr(brain_mod.config, "memory", new_memory_cfg)
+
+    # 5-word transcript — exactly at threshold → should call LLM
+    client_above = _make_mock_client(_make_response(is_noteworthy=True, summary="Pass"))
+    brain_above = Brain(memory=mem, client=client_above)
+    brain_above.process("One two three four five")  # 5 words
+    client_above.models.generate_content.assert_called_once()
+
+    # 4-word transcript — below threshold → must NOT call LLM
+    client_below = _make_mock_client(
+        _make_response(is_noteworthy=True, summary="Should not appear")
+    )
+    brain_below = Brain(memory=mem, client=client_below)
+    brain_below.process("One two three four")  # 4 words
+    client_below.models.generate_content.assert_not_called()

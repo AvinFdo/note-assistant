@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `1.5.2 — Implement relevance filter`**
+> **🎯 Current Focus: `1.6.1 — Create abstract Action base class and registry`**
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -279,7 +279,7 @@
 
 ---
 
-#### `[ ]` 1.5.2 — Implement relevance filter
+#### `[x]` 1.5.2 — Implement relevance filter
 **Context:** Not everything spoken is worth saving. "Hey, how's it going?" doesn't need to be a note. The LLM's `is_noteworthy` field handles this, but we also need guardrails.
 **Details:**
 - If `is_noteworthy` is `false`, still save the conversation transcript (for raw history) but don't create a note or extract actions
