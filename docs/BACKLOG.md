@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `1.8.2 — Write unit tests`**
+> **🎯 Current Focus: `1.8.3 — Set up GitHub Actions CI`**
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -420,7 +420,7 @@
 
 ---
 
-#### `[ ]` 1.8.2 — Write unit tests
+#### `[x]` 1.8.2 — Write unit tests _(90% total coverage; conftest fixtures added; enforced via --cov-fail-under=80)_
 **Context:** We need automated tests to catch regressions, especially for the brain (LLM parsing) and memory (database operations) which are the most complex and fragile parts.
 **Details:**
 - `tests/conftest.py`:

@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "pytest-asyncio", "ruff"]
+dev = ["pytest>=8.0", "pytest-asyncio", "pytest-cov", "ruff"]
 
 [project.scripts]
 avin = "assistant.cli:main"
@@ -40,3 +40,10 @@ ignore = ["E501"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 pythonpath = ["src"]
+
+[tool.coverage.run]
+source = ["src/assistant"]
+
+[tool.coverage.report]
+# Core logic modules must stay above 80% (enforced in CI via --cov-fail-under).
+show_missing = true
