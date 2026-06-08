@@ -12,6 +12,7 @@ BrainError   — base for all Brain failures
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass, field
 
 from google import genai
@@ -19,6 +20,8 @@ from google.genai import types
 
 from assistant.config import config
 from assistant.memory import Memory
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Exception hierarchy
@@ -196,6 +199,19 @@ class Brain:
         Raises:
             BrainError: If the model returns malformed or invalid JSON.
         """
+        # --- Length pre-filter (before any LLM call) ---
+        word_count = len(transcript.split())
+        min_words = config.memory.min_transcript_words
+        if word_count < min_words:
+            logger.debug(
+                "Transcript filtered out (word_count=%d < min_transcript_words=%d): %r",
+                word_count,
+                min_words,
+                transcript,
+            )
+            self._memory.save_conversation(transcript)
+            return ProcessingResult(is_noteworthy=False, summary_note="", actions=[])
+
         # 1. Assemble context
         context = self._memory.assemble_context()
 
@@ -246,23 +262,28 @@ class Brain:
             actions=action_items,
         )
 
-        # 5. Persist
+        # 5. Persist — conversation is always saved for context continuity
         cid = self._memory.save_conversation(transcript)
 
         if is_noteworthy:
             self._memory.save_note(cid, summary_note, is_noteworthy=True)
 
-        threshold: float = config.actions.confidence_threshold
+            threshold: float = config.actions.confidence_threshold
 
-        for action in action_items:
-            # Resolve execution_mode from config per intent
-            execution_mode = self._get_execution_mode(action.intent)
-            aid = self._memory.save_action(cid, action.intent, action.details, execution_mode)
+            for action in action_items:
+                # Resolve execution_mode from config per intent
+                execution_mode = self._get_execution_mode(action.intent)
+                aid = self._memory.save_action(cid, action.intent, action.details, execution_mode)
 
-            # 6. Confidence guardrail
-            if action.confidence < threshold:
-                self._memory.update_action_status(aid, "low_confidence")
-            # High-confidence actions remain 'pending' (the default)
+                # 6. Confidence guardrail
+                if action.confidence < threshold:
+                    self._memory.update_action_status(aid, "low_confidence")
+                # High-confidence actions remain 'pending' (the default)
+        else:
+            logger.debug(
+                "Transcript not noteworthy — skipping note and action persistence: %r",
+                transcript,
+            )
 
         return result
 

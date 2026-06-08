@@ -54,6 +54,7 @@ class MemoryConfig:
     db_path: str = "data/assistant.db"
     context_window_size: int = 5
     max_context_tokens: int = 4000
+    min_transcript_words: int = 10
 
 
 @dataclass
@@ -171,6 +172,7 @@ def _parse_config(data: dict) -> Config:
             db_path=str(mem_raw.get("db_path", "data/assistant.db")),
             context_window_size=int(mem_raw.get("context_window_size", 5)),
             max_context_tokens=int(mem_raw.get("max_context_tokens", 4000)),
+            min_transcript_words=int(mem_raw.get("min_transcript_words", 10)),
         ),
         actions=ActionsConfig(
             confidence_threshold=float(act_raw.get("confidence_threshold", 0.7)),
