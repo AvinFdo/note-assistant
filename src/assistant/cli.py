@@ -1,4 +1,5 @@
 """CLI entry point — full implementation in task 1.8.1."""
+
 import click
 
 

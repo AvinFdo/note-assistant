@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `1.2.1 — Implement audio.py with configurable recording`**
+> **🎯 Current Focus: `1.3.1 — Implement transcriber.py using google-genai multimodal`**
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -128,7 +128,7 @@
 
 ---
 
-#### `[ ]` 1.2.1 — Implement `audio.py` with configurable recording
+#### `[x]` 1.2.1 — Implement `audio.py` with configurable recording
 **Context:** The old `audio.py` worked but had no error handling, saved files to the wrong directory, and had hardcoded values.
 **Details:**
 - Create `AudioRecorder` class that reads settings from `config.audio`
