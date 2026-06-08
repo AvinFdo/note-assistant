@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `1.3.2 — Test transcription accuracy in noisy environment (BLOCKED: needs human + mic)`**
+> **🎯 Current Focus: `1.4.2 — Implement context retrieval for LLM prompt enrichment`**
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -197,7 +197,7 @@
 
 ---
 
-#### `[ ]` 1.4.1 — Design and implement SQLite schema
+#### `[x]` 1.4.1 — Design and implement SQLite schema
 **Context:** We need to store conversations, notes, actions, and rolling context. The schema is defined in [Section 4 of the Project Brief](file:///Users/avinfernando/.gemini/antigravity/brain/fdc908c9-c3a0-4545-a576-e171e82fdd8f/implementation_plan.md).
 **Details:**
 - Create `memory.py` with a `Memory` class
