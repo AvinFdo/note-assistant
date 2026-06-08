@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `1.3.1 — Implement transcriber.py using google-genai multimodal`**
+> **🎯 Current Focus: `1.3.2 — Test transcription accuracy in noisy environment (BLOCKED: needs human + mic)`**
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -156,7 +156,7 @@
 
 ---
 
-#### `[ ]` 1.3.1 — Implement `transcriber.py` using google-genai multimodal
+#### `[x]` 1.3.1 — Implement `transcriber.py` using google-genai multimodal
 **Context:** Gemini models accept audio files as input. We can send a WAV file and ask the model to transcribe it, replacing the need for a separate Speech-to-Text API.
 **Details:**
 - Create `Transcriber` class
