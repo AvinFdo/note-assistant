@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `1.8.3 — Set up GitHub Actions CI`**
+> **🎯 Current Focus: `2.1.1 — Create FastAPI application`** _(Stage 1 complete; 1.3.2 noise-accuracy test remains for human + mic)_
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -450,7 +450,7 @@
 
 ---
 
-#### `[ ]` 1.8.3 — Set up GitHub Actions CI
+#### `[x]` 1.8.3 — Set up GitHub Actions CI
 **Context:** Automated testing on every push prevents broken code from being merged.
 **Details:**
 - Create `.github/workflows/ci.yml`:
