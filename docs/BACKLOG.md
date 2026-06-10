@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `2.1.3 — Add authentication`** _(Stage 1 complete; 1.3.2 noise-accuracy test remains for human + mic)_
+> **🎯 Current Focus: `2.2.5 — Obsidian integration`** _(Stage 1 complete; 1.3.2 noise-accuracy test remains for human + mic)_
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -496,7 +496,7 @@
 
 ---
 
-#### `[ ]` 2.1.3 — Add authentication
+#### `[x]` 2.1.3 — Add authentication
 **Context:** The API will be internet-facing. We need to prevent unauthorized access.
 **Details:**
 - Start simple: API key authentication via `X-API-Key` header

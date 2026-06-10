@@ -53,3 +53,11 @@ integrations:
     notes_folder: "assistant" # Subfolder within vault for assistant notes
   google:
     oauth_credentials_path: "" # Path to OAuth2 client secret JSON
+
+# --- API Authentication ---
+# Leave api_keys EMPTY for local development (auth disabled when no keys are set).
+# In production, inject keys via the AVIN_API_KEYS environment variable
+# (comma-separated), e.g. AVIN_API_KEYS="key1,key2"
+# NEVER commit real keys here.
+api:
+  api_keys: []  # e.g. ["key1", "key2"] — empty means auth disabled
