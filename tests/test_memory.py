@@ -510,3 +510,22 @@ def test_get_action_found(mem: Memory) -> None:
 def test_get_action_not_found(mem: Memory) -> None:
     """get_action returns None for an unknown action_id."""
     assert mem.get_action("nonexistent-action") is None
+
+
+# ---------------------------------------------------------------------------
+# count_notes helper (added for API pagination)
+# ---------------------------------------------------------------------------
+
+
+def test_count_notes_empty(mem: Memory) -> None:
+    """count_notes returns 0 when no notes exist."""
+    assert mem.count_notes() == 0
+
+
+def test_count_notes_after_saves(mem: Memory) -> None:
+    """count_notes reflects the correct total after saving notes."""
+    cid = mem.save_conversation("conv")
+    mem.save_note(cid, "note one")
+    assert mem.count_notes() == 1
+    mem.save_note(cid, "note two")
+    assert mem.count_notes() == 2

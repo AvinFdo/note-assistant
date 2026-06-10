@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `2.1.1 — Create FastAPI application`** _(Stage 1 complete; 1.3.2 noise-accuracy test remains for human + mic)_
+> **🎯 Current Focus: `2.1.2 — WebSocket endpoint for real-time audio streaming`** _(Stage 1 complete; 1.3.2 noise-accuracy test remains for human + mic)_
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -468,7 +468,7 @@
 
 ### 2.1 — API Server
 
-#### `[ ]` 2.1.1 — Create FastAPI application
+#### `[x]` 2.1.1 — Create FastAPI application
 **Context:** We need to expose the processing pipeline as an API so clients (web, mobile, Raspberry Pi) can send audio and receive notes remotely.
 **Details:**
 - Create `src/assistant/api/` package with `app.py`, `routes.py`, `schemas.py`, `auth.py`

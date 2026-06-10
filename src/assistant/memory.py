@@ -138,7 +138,7 @@ class Memory:
         resolved = db_path if db_path is not None else _default_config.memory.db_path
         if resolved != ":memory:":
             Path(resolved).parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(resolved)
+        self._conn = sqlite3.connect(resolved, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(_SCHEMA)
         self._conn.commit()
@@ -231,6 +231,11 @@ class Memory:
             )
             for row in rows
         ]
+
+    def count_notes(self) -> int:
+        """Return the total number of notes stored."""
+        row = self._conn.execute("SELECT COUNT(*) FROM notes").fetchone()
+        return row[0]
 
     def search_notes(self, query: str) -> list[Note]:
         """Return notes whose summary contains *query* (case-insensitive LIKE search).
