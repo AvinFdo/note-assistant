@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `2.4.1 — Write Dockerfile and docker-compose.yml`** _(Stage 1 complete; 1.3.2 noise-accuracy test remains for human + mic)_
+> **🎯 Current Focus: `Web client (Cloudflare Pages) — phone frontend`** _(Stage 1 + API server done. Remaining backend tasks are gated on your setup: OAuth (2.2.1–2.2.4/2.2.6), Firestore (2.3.x), Cloud Run/billing (2.4.2–2.4.3). 1.3.2 noise test needs human + mic.)_
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -625,7 +625,7 @@
 
 ### 2.4 — Containerization & Deployment
 
-#### `[ ]` 2.4.1 — Write Dockerfile and docker-compose.yml
+#### `[x]` 2.4.1 — Write Dockerfile and docker-compose.yml _(files written + compose validated; live `docker compose up` build pending — start Docker daemon)_
 **Context:** We need a reproducible, deployable container image.
 **Details:**
 - Multi-stage Dockerfile: build stage installs deps, runtime stage copies only what's needed
