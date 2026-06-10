@@ -13,8 +13,9 @@ OpenAPI interactive docs are served at ``/docs``.
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
+from .auth import require_api_key
 from .routes import router
 from .stream import stream_router
 
@@ -27,10 +28,16 @@ app = FastAPI(
     ),
 )
 
-# Include the versioned API router (/api/v1/...)
-app.include_router(router)
+# Include the versioned API router (/api/v1/...) — protected by API-key auth.
+# The auth dependency is applied at include-time so it covers every route in the
+# router without modifying routes.py.  /health (below) is outside this router
+# and therefore intentionally auth-free.
+# /docs, /openapi.json, and /redoc are also auth-free (schema, not data).
+app.include_router(router, dependencies=[Depends(require_api_key)])
 
-# Include the WebSocket streaming router (/api/v1/stream)
+# WebSocket streaming — auth is handled inside the endpoint itself because
+# browsers cannot set custom headers on WebSocket connections; the key is
+# passed as the ?api_key= query parameter instead.
 app.include_router(stream_router)
 
 

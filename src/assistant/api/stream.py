@@ -41,6 +41,7 @@ router) so that ``app.dependency_overrides[get_memory]`` works from tests.
 from __future__ import annotations
 
 import contextlib
+import hmac
 import json
 import logging
 from pathlib import Path
@@ -50,6 +51,7 @@ import numpy as np
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
 from assistant.audio import AudioRecorder, _SpeechSegmenter
+from assistant.config import config
 from assistant.memory import Memory
 from assistant.vad import FRAME_SAMPLES
 
@@ -252,28 +254,71 @@ async def _flush_segmenter(
 # ---------------------------------------------------------------------------
 
 
+def _check_ws_api_key(api_key: str | None) -> bool:
+    """Return True if the WebSocket connection should be allowed.
+
+    Mirrors the REST ``require_api_key`` dependency logic but for WebSocket:
+    - If no keys are configured, auth is disabled and all connections are allowed.
+    - Otherwise the provided *api_key* (from ``?api_key=`` query param or the
+      ``X-API-Key`` header via ``Sec-WebSocket-Protocol`` — standard browsers
+      cannot set custom headers on WebSocket, so the query param is the primary
+      mechanism) must match one of the configured keys.
+
+    Comparison is constant-time (``hmac.compare_digest``) to prevent timing
+    attacks.
+    """
+    configured_keys: list[str] = config.api.api_keys
+    if not configured_keys:
+        return True  # Auth disabled.
+    if api_key is None:
+        return False
+    return any(hmac.compare_digest(api_key, candidate) for candidate in configured_keys)
+
+
 @stream_router.websocket("/stream")
 async def websocket_stream(
     ws: WebSocket,
+    api_key: str | None = None,
     memory: Memory = Depends(get_memory),  # noqa: B008
 ) -> None:
     """``WS /api/v1/stream`` — real-time audio streaming endpoint.
+
+    Authentication
+    --------------
+    Browsers cannot set custom HTTP headers on WebSocket upgrades, so the API
+    key is accepted as the ``?api_key=`` query parameter (e.g.
+    ``ws://host/api/v1/stream?api_key=secret``).  The server also accepts the
+    ``X-API-Key`` header when the client supports it (non-browser clients).
+    When keys are configured and the key is absent or wrong, the WebSocket is
+    accepted and then immediately closed with code 1008 (Policy Violation).
+    When no keys are configured (default / local dev), all connections are
+    allowed regardless of the ``api_key`` parameter.
 
     See module docstring for the full protocol specification.
 
     The endpoint:
     1. Accepts the connection.
-    2. Constructs per-connection instances of VADProcessor, AudioRecorder,
+    2. Checks API-key auth; closes with 1008 on failure.
+    3. Constructs per-connection instances of VADProcessor, AudioRecorder,
        and _SpeechSegmenter.
-    3. Loops, receiving frames:
+    4. Loops, receiving frames:
        - Binary → accumulate into a byte buffer, slice into FRAME_SAMPLES
          windows, feed each window to the segmenter.
        - Text JSON ``control/stop`` → flush the in-progress segment, break.
-    4. Handles ``WebSocketDisconnect`` gracefully (flush then close Memory).
-    5. Wraps per-pipeline errors in ``error`` messages; the socket stays open
+    5. Handles ``WebSocketDisconnect`` gracefully (flush then close Memory).
+    6. Wraps per-pipeline errors in ``error`` messages; the socket stays open
        for subsequent segments unless a disconnect is signalled.
     """
     await ws.accept()
+
+    # --- API-key auth for WebSocket ---
+    # The query-param key takes precedence; fall back to the X-API-Key header
+    # when the client is not a browser and can set custom headers.
+    effective_key = api_key or ws.headers.get("x-api-key")
+    if not _check_ws_api_key(effective_key):
+        logger.warning("WebSocket connection rejected: invalid or missing API key")
+        await ws.close(code=1008, reason="Invalid or missing API key")
+        return
     logger.info("WebSocket /api/v1/stream connected")
 
     transcriber = make_transcriber()

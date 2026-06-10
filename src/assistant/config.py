@@ -93,6 +93,19 @@ class IntegrationsConfig:
 
 
 @dataclass
+class ApiConfig:
+    """API-level settings, including authentication keys.
+
+    ``api_keys`` is the list of valid API keys accepted by the server.
+    Leave it empty (the default) to disable authentication — useful for local
+    development.  In production, inject keys via the ``AVIN_API_KEYS``
+    environment variable (comma-separated) or the ``api.api_keys`` YAML list.
+    """
+
+    api_keys: list[str] = field(default_factory=list)
+
+
+@dataclass
 class Config:
     gcp: GcpConfig = field(default_factory=GcpConfig)
     models: ModelsConfig = field(default_factory=ModelsConfig)
@@ -101,6 +114,7 @@ class Config:
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     actions: ActionsConfig = field(default_factory=ActionsConfig)
     integrations: IntegrationsConfig = field(default_factory=IntegrationsConfig)
+    api: ApiConfig = field(default_factory=ApiConfig)
 
 
 # ---------------------------------------------------------------------------
@@ -110,11 +124,25 @@ class Config:
 _DEFAULT_CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "default.yaml"
 
 # Top-level section names — used to parse AVIN_<SECTION>_<KEY> env vars.
-_SECTIONS = ("integrations", "models", "memory", "actions", "audio", "gcp", "vad")
+_SECTIONS = ("integrations", "models", "memory", "actions", "audio", "gcp", "vad", "api")
 
 
 def _apply_env_overrides(data: dict) -> None:
-    """Mutate *data* in-place with any AVIN_* environment variable overrides."""
+    """Mutate *data* in-place with any AVIN_* environment variable overrides.
+
+    Special cases:
+    - ``AVIN_API_KEYS``: comma-separated string parsed into a list and stored
+      under ``data["api"]["api_keys"]``.  The generic mechanism would store a
+      raw string, which is wrong for a list field, so we handle it explicitly
+      here before the generic loop runs.
+    """
+    # --- Explicit list overrides ---
+    avin_api_keys = os.environ.get("AVIN_API_KEYS")
+    if avin_api_keys is not None:
+        keys = [k.strip() for k in avin_api_keys.split(",") if k.strip()]
+        data.setdefault("api", {})["api_keys"] = keys
+
+    # --- Generic scalar overrides ---
     for env_key, value in os.environ.items():
         if not env_key.startswith("AVIN_"):
             continue
@@ -123,6 +151,9 @@ def _apply_env_overrides(data: dict) -> None:
             prefix = section + "_"
             if rest.startswith(prefix):
                 key = rest[len(prefix) :]
+                # Skip api_keys — already handled above as a list.
+                if section == "api" and key == "api_keys":
+                    break
                 data.setdefault(section, {})[key] = value
                 break
 
@@ -143,6 +174,7 @@ def _parse_config(data: dict) -> Config:
     int_raw = data.get("integrations", {})
     obs_raw = int_raw.get("obsidian", {})
     goog_raw = int_raw.get("google", {})
+    api_raw = data.get("api", {})
 
     return Config(
         gcp=GcpConfig(
@@ -189,6 +221,10 @@ def _parse_config(data: dict) -> Config:
             google=GoogleIntegrationConfig(
                 oauth_credentials_path=str(goog_raw.get("oauth_credentials_path", "")),
             ),
+        ),
+        api=ApiConfig(
+            # api_keys must be a list of strings; guard against YAML scalars.
+            api_keys=list(api_raw.get("api_keys") or []),
         ),
     )
 
