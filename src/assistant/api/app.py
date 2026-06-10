@@ -13,7 +13,10 @@ OpenAPI interactive docs are served at ``/docs``.
 
 from __future__ import annotations
 
+import os
+
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from .auth import require_api_key
 from .routes import router
@@ -26,6 +29,22 @@ app = FastAPI(
         "REST API for the Avin context-aware voice assistant. "
         "Exposes notes, actions, search, and context endpoints backed by SQLite."
     ),
+)
+
+# CORS — the web client is hosted on a different origin (Cloudflare Pages) from
+# the backend (Cloud Run), so the browser needs CORS to permit its REST calls.
+# Origins are configurable via AVIN_CORS_ORIGINS (comma-separated); default "*".
+# Credentials are NOT used (auth is via the X-API-Key header, not cookies), so a
+# wildcard origin is safe here.
+_cors_origins = [
+    o.strip() for o in os.environ.get("AVIN_CORS_ORIGINS", "*").split(",") if o.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins or ["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Include the versioned API router (/api/v1/...) — protected by API-key auth.
