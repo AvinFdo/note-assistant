@@ -31,6 +31,7 @@ from assistant.actions import route_action
 from assistant.audio import AudioRecorder
 from assistant.brain import ActionItem, Brain
 from assistant.config import config
+from assistant.integrations.obsidian import ObsidianWriter
 from assistant.memory import Memory
 from assistant.transcriber import Transcriber
 
@@ -61,6 +62,14 @@ def _make_brain(memory: Memory) -> Brain:
     return Brain(memory=memory)
 
 
+def _make_obsidian_writer() -> ObsidianWriter:
+    """Construct and return an ObsidianWriter from config.
+
+    Tests monkeypatch this to inject a writer pointed at a tmp vault.
+    """
+    return ObsidianWriter()
+
+
 # ---------------------------------------------------------------------------
 # Shared pipeline helper
 # ---------------------------------------------------------------------------
@@ -73,6 +82,7 @@ def process_audio_file(
     brain: Brain,
     memory: Memory,
     confirm: Callable[[str], bool] | None = None,
+    obsidian_writer: ObsidianWriter | None = None,
 ) -> None:
     """Transcribe *wav_path*, run the brain, and route any pending actions.
 
@@ -83,20 +93,27 @@ def process_audio_file(
        and all action rows with the correct confidence-filtered statuses:
        - confidence < threshold  → saved with status ``'low_confidence'``
        - confidence >= threshold → saved with status ``'pending'``
-    3. Fetch ``memory.get_pending_actions()`` (only the high-confidence
+    3. If the result is noteworthy and *obsidian_writer* is configured, write
+       the summary + actions to the daily vault note.  The write is gated on
+       ``writer.is_configured()`` so no vault configured → no write, no error.
+    4. Fetch ``memory.get_pending_actions()`` (only the high-confidence
        rows) and route each one through ``route_action``.  Low-confidence
        actions are intentionally skipped here — they never reach execute().
-    4. Print the result of each routed action via click.echo.
+    5. Print the result of each routed action via click.echo.
 
     Args:
-        wav_path:    Path to a valid WAV file produced by AudioRecorder.
-        transcriber: Transcriber instance (injected for testability).
-        brain:       Brain instance (injected for testability).
-        memory:      Memory instance (injected for testability).
-        confirm:     Optional callable ``(description: str) -> bool`` used for
-                     ``confirm_first`` actions such as ``send_email``.  When
-                     ``None``, confirm_first actions remain "pending" and are
-                     never executed (GUARDRAIL intact).
+        wav_path:         Path to a valid WAV file produced by AudioRecorder.
+        transcriber:      Transcriber instance (injected for testability).
+        brain:            Brain instance (injected for testability).
+        memory:           Memory instance (injected for testability).
+        confirm:          Optional callable ``(description: str) -> bool`` used for
+                          ``confirm_first`` actions such as ``send_email``.  When
+                          ``None``, confirm_first actions remain "pending" and are
+                          never executed (GUARDRAIL intact).
+        obsidian_writer:  Optional :class:`~assistant.integrations.obsidian.ObsidianWriter`
+                          instance.  When ``None`` (the default), a writer is built
+                          from config via :func:`_make_obsidian_writer`.  The write
+                          is silently skipped when ``writer.is_configured()`` is False.
     """
     # Step 1: transcribe
     result = transcriber.transcribe(wav_path)
@@ -104,9 +121,14 @@ def process_audio_file(
     click.echo(f"Transcript: {text}")
 
     # Step 2: brain processes and persists (applies confidence guardrail internally)
-    brain.process(text)
+    brain_result = brain.process(text)
 
-    # Step 3: route only the high-confidence pending actions
+    # Step 3: optionally write to Obsidian vault (gated on vault being configured)
+    writer = obsidian_writer if obsidian_writer is not None else _make_obsidian_writer()
+    if brain_result.is_noteworthy and writer.is_configured():
+        writer.write_note(brain_result.summary_note, brain_result.actions)
+
+    # Step 4: route only the high-confidence pending actions
     pending = memory.get_pending_actions()
     for action_row in pending:
         action_item = ActionItem(

@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `2.2.5 — Obsidian integration`** _(Stage 1 complete; 1.3.2 noise-accuracy test remains for human + mic)_
+> **🎯 Current Focus: `2.4.1 — Write Dockerfile and docker-compose.yml`** _(Stage 1 complete; 1.3.2 noise-accuracy test remains for human + mic)_
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -568,7 +568,7 @@
 
 ---
 
-#### `[ ]` 2.2.5 — Obsidian integration
+#### `[x]` 2.2.5 — Obsidian integration (local markdown writer; pipeline hook gated on configured vault)
 **Context:** Save notes as markdown files into the user's Obsidian vault.
 **Details:**
 - Read vault path from `config.integrations.obsidian.vault_path`
