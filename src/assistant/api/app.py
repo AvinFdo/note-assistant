@@ -16,6 +16,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from .routes import router
+from .stream import stream_router
 
 app = FastAPI(
     title="Avin API",
@@ -28,6 +29,9 @@ app = FastAPI(
 
 # Include the versioned API router (/api/v1/...)
 app.include_router(router)
+
+# Include the WebSocket streaming router (/api/v1/stream)
+app.include_router(stream_router)
 
 
 # ---------------------------------------------------------------------------
