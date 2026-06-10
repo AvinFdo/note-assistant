@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `2.1.2 — WebSocket endpoint for real-time audio streaming`** _(Stage 1 complete; 1.3.2 noise-accuracy test remains for human + mic)_
+> **🎯 Current Focus: `2.1.3 — Add authentication`** _(Stage 1 complete; 1.3.2 noise-accuracy test remains for human + mic)_
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -481,7 +481,7 @@
 
 ---
 
-#### `[ ]` 2.1.2 — WebSocket endpoint for real-time audio streaming
+#### `[x]` 2.1.2 — WebSocket endpoint for real-time audio streaming (server-side VAD segmentation reused; logic unit-tested offline)
 **Context:** For the Raspberry Pi and future clients, we need real-time streaming rather than file upload.
 **Details:**
 - `WS /api/v1/stream` endpoint
