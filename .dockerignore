@@ -1,0 +1,23 @@
+# Keep the build context small and the image clean.
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.git/
+.github/
+tests/
+docs/
+data/
+recordings/
+*.db
+*.wav
+.env
+.DS_Store
+# iCloud duplicate-file artifacts
+*\ 2.*
