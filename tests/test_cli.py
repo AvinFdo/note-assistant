@@ -15,6 +15,7 @@ import pytest
 from click.testing import CliRunner
 
 from assistant import cli
+from assistant.brain import ActionItem, ProcessingResult
 from assistant.config import config
 from assistant.memory import Memory
 
@@ -56,13 +57,20 @@ class _SavingBrain:
         self._actions = actions
         self.process_calls: list[str] = []
 
-    def process(self, text: str):
+    def process(self, text: str) -> ProcessingResult:
         self.process_calls.append(text)
         cid = self._memory.save_conversation(text)
+        action_items: list[ActionItem] = []
         for intent, details in self._actions:
             # execution_mode here is irrelevant — route_action reads mode from config
             self._memory.save_action(cid, intent, details, "pending")
-        return None
+            action_items.append(ActionItem(intent=intent, confidence=1.0, details=details))
+        is_noteworthy = bool(self._actions) or bool(text.strip())
+        return ProcessingResult(
+            is_noteworthy=is_noteworthy,
+            summary_note=text[:80] if is_noteworthy else "",
+            actions=action_items,
+        )
 
 
 def test_listen_fixed_duration_calls_record_with_n(runner, monkeypatch):
