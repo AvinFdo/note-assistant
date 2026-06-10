@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `Web client (Cloudflare Pages) — phone frontend`** _(Stage 1 + API server done. Remaining backend tasks are gated on your setup: OAuth (2.2.1–2.2.4/2.2.6), Firestore (2.3.x), Cloud Run/billing (2.4.2–2.4.3). 1.3.2 noise test needs human + mic.)_
+> **🎯 Current Focus: `2.4.2 — Deploy to Cloud Run`** _(GATED — needs your GCP/gcloud. Stage 1, API server (2.1.x), Obsidian (2.2.5), Docker (2.4.1), and the Cloudflare Pages web client are all done. Remaining are gated on your setup: OAuth (2.2.1–2.2.4/2.2.6), Firestore (2.3.x), Cloud Run/billing (2.4.2–2.4.3). 1.3.2 noise test needs human + mic.)_
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -661,6 +661,21 @@
 - Add a `/metrics` endpoint or use Cloud Monitoring for request count and latency tracking
 
 **Done when:** Billing alerts are active. Errors appear in Cloud Logging. Can see request metrics.
+
+---
+
+### 2.5 — Web Client (phone frontend)
+
+#### `[x]` 2.5.1 — Cloudflare Pages web client _(added per the phone-web-app goal; browser/live validation pending)_
+**Context:** A phone-accessible web app (the user's target) that streams microphone audio to the Cloud Run backend and surfaces notes/actions in real time. Hosted on Cloudflare Pages; the Python backend stays on Cloud Run (Workers can't run the torch/audio pipeline).
+**Details:**
+- `web/` static app (vanilla HTML/CSS/JS, zero build step): `index.html`, `app.js`, `styles.css`, `README.md`.
+- Mic capture via `getUserMedia` + Web Audio API; downsamples to 16 kHz mono int16 PCM and streams binary frames to `WS /api/v1/stream`; sends `control/stop` on Stop.
+- Renders `transcript`/`note`/`action`/`error` messages; action cards needing confirmation show Confirm/Dismiss → `PATCH /api/v1/actions/{id}` (never auto-confirms — email guardrail preserved at the UI).
+- Settings (backend URL + API key) persisted to `localStorage`; auth via `X-API-Key` header / `?api_key=` for WS.
+- Backend: added CORS middleware (`AVIN_CORS_ORIGINS`, default `*`) so the Pages origin can call the REST API.
+
+**Done when:** Web client built and committed; JS syntax-checked; backend CORS in place. _Live phone test (mic → notes) is the user's manual step; needs the backend deployed (2.4.2) + CORS origin set._
 
 ---
 

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0f1117" />
+    <meta
+      name="description"
+      content="Avin — context-aware voice assistant web client. Stream your mic to the backend and capture notes and actions."
+    />
+    <title>Avin</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <!-- Header -->
+      <header class="header">
+        <h1>Av<span>in</span></h1>
+        <button id="btn-settings-toggle" class="settings-toggle" type="button">
+          Settings
+        </button>
+      </header>
+
+      <!-- Settings (collapsible; toggled open via #btn-settings-toggle) -->
+      <section id="settings-panel" class="settings-panel" aria-label="Settings">
+        <h2>Connection</h2>
+        <div class="field">
+          <label for="input-backend-url">Backend URL</label>
+          <input
+            id="input-backend-url"
+            type="url"
+            inputmode="url"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            placeholder="https://avin-xxxx.run.app"
+          />
+        </div>
+        <div class="field">
+          <label for="input-api-key">API key (optional)</label>
+          <input
+            id="input-api-key"
+            type="password"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            placeholder="Sent as X-API-Key / ?api_key"
+          />
+        </div>
+        <button id="btn-save-settings" class="btn-save" type="button">Save</button>
+      </section>
+
+      <!-- Record / Stop -->
+      <section class="record-section">
+        <button id="btn-record" class="btn-record" type="button" aria-label="Record / Stop">
+          <span class="icon-mic" aria-hidden="true"></span>
+        </button>
+        <div id="status-line" class="status-line">Loading…</div>
+      </section>
+
+      <!-- Secondary actions -->
+      <div class="action-bar">
+        <button id="btn-history" class="btn-secondary" type="button">History</button>
+      </div>
+
+      <!-- Live results feed (transcript / note / action / error cards) -->
+      <div class="feed-header">Feed</div>
+      <div id="feed" class="feed">
+        <div class="feed-empty">
+          Notes and actions will appear here as you speak.
+        </div>
+      </div>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
