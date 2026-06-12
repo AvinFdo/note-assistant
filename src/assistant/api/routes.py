@@ -21,6 +21,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from assistant.memory import Memory
+from assistant.memory_factory import create_memory
 
 from .schemas import (
     ActionOut,
@@ -44,11 +45,13 @@ _LARGE_LIMIT = 10_000  # practical upper bound for "fetch all" slicing
 
 
 def get_memory() -> Generator[Memory, None, None]:
-    """Yield a real :class:`~assistant.memory.Memory` instance and close it.
+    """Yield the configured storage backend (SQLite or Firestore) and close it.
 
-    Tests override this via ``app.dependency_overrides[get_memory]``.
+    The backend is chosen by ``config.memory.backend`` via
+    :func:`~assistant.memory_factory.create_memory`.  Tests override this via
+    ``app.dependency_overrides[get_memory]``.
     """
-    mem = Memory()
+    mem = create_memory()
     try:
         yield mem
     finally:

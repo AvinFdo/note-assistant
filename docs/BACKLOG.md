@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `2.4.2 — Deploy to Cloud Run`** _(GATED — needs your GCP/gcloud. Stage 1, API server (2.1.x), Obsidian (2.2.5), Docker (2.4.1), and the Cloudflare Pages web client are all done. Remaining are gated on your setup: OAuth (2.2.1–2.2.4/2.2.6), Firestore (2.3.x), Cloud Run/billing (2.4.2–2.4.3). 1.3.2 noise test needs human + mic.)_
+> **🎯 Current Focus: `2.4.2 — Deploy to Cloud Run`** _(GATED — needs your confirmation; billable. Done: Stage 1, API server (2.1.x), Obsidian (2.2.5), Docker (2.4.1), Firestore backend (2.3.1), and the Cloudflare Pages web client. Remaining gated on your setup: OAuth (2.2.1–2.2.4/2.2.6), embeddings (2.3.2), Cloud Run/billing (2.4.2–2.4.3). 1.3.2 noise test needs human + mic.)_
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -596,7 +596,7 @@
 
 ### 2.3 — Persistence Migration
 
-#### `[ ]` 2.3.1 — Migrate from SQLite to Firestore
+#### `[x]` 2.3.1 — Migrate from SQLite to Firestore _(FirestoreMemory + sqlite|firestore switch; 23 offline tests w/ fake client. Real-Firestore/emulator parity + enabling the TTL policy pending.)_
 **Context:** SQLite doesn't work in serverless environments (Cloud Run instances are ephemeral). Firestore is serverless, GCP-native, and has a generous free tier.
 **Details:**
 - Create a `FirestoreMemory` class implementing the same interface as `Memory`

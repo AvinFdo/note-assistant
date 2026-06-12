@@ -33,6 +33,7 @@ from assistant.brain import ActionItem, Brain
 from assistant.config import config
 from assistant.integrations.obsidian import ObsidianWriter
 from assistant.memory import Memory
+from assistant.memory_factory import create_memory
 from assistant.transcriber import Transcriber
 
 _console = Console()
@@ -48,8 +49,8 @@ def _make_recorder() -> AudioRecorder:
 
 
 def _make_memory() -> Memory:
-    """Construct and return a Memory instance backed by config.memory.db_path."""
-    return Memory()
+    """Construct the configured storage backend (SQLite or Firestore)."""
+    return create_memory()
 
 
 def _make_transcriber() -> Transcriber:

@@ -33,6 +33,7 @@ memory:
   context_window_size: 5      # Number of recent conversations to include in LLM prompt
   max_context_tokens: 4000    # Approximate token budget for context in the prompt
   min_transcript_words: 10    # Transcripts with fewer words skip the LLM call entirely
+  backend: "sqlite"           # Storage backend: sqlite | firestore (firestore for Cloud Run)
 
 # --- Actions ---
 actions:
