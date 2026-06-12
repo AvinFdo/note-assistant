@@ -55,6 +55,7 @@ class MemoryConfig:
     context_window_size: int = 5
     max_context_tokens: int = 4000
     min_transcript_words: int = 10
+    backend: str = "sqlite"  # sqlite | firestore
 
 
 @dataclass
@@ -205,6 +206,7 @@ def _parse_config(data: dict) -> Config:
             context_window_size=int(mem_raw.get("context_window_size", 5)),
             max_context_tokens=int(mem_raw.get("max_context_tokens", 4000)),
             min_transcript_words=int(mem_raw.get("min_transcript_words", 10)),
+            backend=str(mem_raw.get("backend", "sqlite")),
         ),
         actions=ActionsConfig(
             confidence_threshold=float(act_raw.get("confidence_threshold", 0.7)),

@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 
 from assistant.config import config as _default_config
+from assistant.context_assembly import assemble_context_string
 
 # ---------------------------------------------------------------------------
 # Custom exceptions
@@ -463,19 +464,9 @@ class Memory:
     def assemble_context(self) -> str:
         """Assemble the "memory" section of the LLM prompt from three sources.
 
-        Format
-        ------
-        The returned string follows the prompt template defined in PROJECT_BRIEF §6::
-
-            CONTEXT (Recent History):
-            - <summary 1>
-            - <summary 2>
-
-            CONTEXT (Known Information):
-            - key: value
-
-            CONTEXT (Pending Actions):
-            - <intent>: <short detail>
+        Delegates formatting and truncation to
+        :func:`~assistant.context_assembly.assemble_context_string` so that
+        SQLite Memory and FirestoreMemory produce identical output.
 
         Sources
         -------
@@ -490,13 +481,9 @@ class Memory:
         ----------
         If the assembled string exceeds ``config.memory.max_context_tokens * 4``
         characters (approximate: 1 token ≈ 4 chars), the **oldest history entries**
-        are dropped one-by-one until the string fits within the budget.  Known
-        Information and section headers are always preserved.  Truncation is
-        deterministic: entries are removed from the oldest end of the history list
-        first (the list is ordered newest-first, so we pop from the tail).
+        are dropped one-by-one until the string fits within the budget.
         """
         cfg = _default_config.memory
-        char_budget = cfg.max_context_tokens * 4
 
         # 1. Recent noteworthy history
         rows = self._conn.execute(
@@ -528,28 +515,7 @@ class Memory:
         # 3. Known information (key-value context window)
         ctx = self.get_all_context()
 
-        def _build(hist: list[str]) -> str:
-            history_section = "\n".join(f"- {s}" for s in hist) if hist else "- (none)"
-            info_section = "\n".join(f"- {k}: {v}" for k, v in ctx.items()) if ctx else "- (none)"
-            actions_section = (
-                "\n".join(f"- {line}" for line in action_lines) if action_lines else "- (none)"
-            )
-
-            return (
-                f"CONTEXT (Recent History):\n{history_section}\n\n"
-                f"CONTEXT (Known Information):\n{info_section}\n\n"
-                f"CONTEXT (Pending Actions):\n{actions_section}"
-            )
-
-        result = _build(history)
-
-        # Truncate by dropping oldest history entries until within budget
-        # history[0] = newest, history[-1] = oldest  →  pop from the tail
-        while len(result) > char_budget and history:
-            history.pop()  # remove oldest entry
-            result = _build(history)
-
-        return result
+        return assemble_context_string(history, action_lines, ctx, cfg.max_context_tokens)
 
     # ------------------------------------------------------------------
     # Lifecycle
