@@ -101,9 +101,16 @@ class ApiConfig:
     Leave it empty (the default) to disable authentication — useful for local
     development.  In production, inject keys via the ``AVIN_API_KEYS``
     environment variable (comma-separated) or the ``api.api_keys`` YAML list.
+
+    ``proxy_secret`` is a shared secret that a trusted reverse proxy (the
+    Cloudflare Worker) injects as the ``X-Proxy-Secret`` header.  When set, the
+    backend rejects any request/WebSocket lacking it — so only the proxy (not the
+    public internet) can reach the API.  Empty (default) disables the check for
+    local dev.  In production, inject via ``AVIN_API_PROXY_SECRET``.
     """
 
     api_keys: list[str] = field(default_factory=list)
+    proxy_secret: str = ""
 
 
 @dataclass
@@ -227,6 +234,7 @@ def _parse_config(data: dict) -> Config:
         api=ApiConfig(
             # api_keys must be a list of strings; guard against YAML scalars.
             api_keys=list(api_raw.get("api_keys") or []),
+            proxy_secret=str(api_raw.get("proxy_secret", "")),
         ),
     )
 
