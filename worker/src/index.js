@@ -52,15 +52,12 @@ export default {
 
     // WebSocket upgrade — forward with the secret injected on the handshake.
     if ((request.headers.get("Upgrade") || "").toLowerCase() === "websocket") {
-      const wsHeaders = new Headers(request.headers);
-      wsHeaders.set("X-Proxy-Secret", env.PROXY_SECRET || "");
-      return fetch(
-        new Request(targetUrl, {
-          method: request.method,
-          headers: wsHeaders,
-          body: request.body,
-        }),
-      );
+      // Clone the original request (preserves the WebSocket upgrade) onto the
+      // backend URL, then inject the secret.  Reconstructing the request from
+      // scratch breaks the upgrade handshake (results in a 502), so we clone.
+      const wsReq = new Request(targetUrl, request);
+      wsReq.headers.set("X-Proxy-Secret", env.PROXY_SECRET || "");
+      return fetch(wsReq);
     }
 
     // Regular REST request.
