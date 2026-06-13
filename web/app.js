@@ -60,6 +60,7 @@ let scriptProcessor  = null;   // ScriptProcessorNode
 let sourceNode       = null;   // MediaStreamAudioSourceNode
 let ws               = null;   // WebSocket
 let isRecording      = false;
+let lastLevelUpdate  = 0;      // throttle for the mic-level meter
 
 // ─── DOM refs (populated on DOMContentLoaded) ─────────────────────────────────
 
@@ -400,8 +401,18 @@ async function startRecording() {
   // 2. Open AudioContext
   // We let the browser choose its native sample rate and downsample in JS.
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  // iOS Safari starts the AudioContext in a "suspended" state — it must be
+  // resumed within the user-gesture (the tap that called startRecording) or the
+  // ScriptProcessorNode callback never fires and only silence is streamed.
+  if (audioCtx.state === "suspended") {
+    try {
+      await audioCtx.resume();
+    } catch (err) {
+      console.warn("AudioContext.resume() failed:", err);
+    }
+  }
   const inputSampleRate = audioCtx.sampleRate; // typically 44100 or 48000
-  console.log(`AudioContext sample rate: ${inputSampleRate} Hz`);
+  console.log(`AudioContext sample rate: ${inputSampleRate} Hz, state: ${audioCtx.state}`);
 
   // 3. Build API key query param for WebSocket URL (browsers can't set headers on WS)
   const apiKey  = getApiKey();
@@ -474,6 +485,18 @@ async function startRecording() {
       for (let i = 0; i < monoBuffer.length; i++) {
         monoBuffer[i] /= numChannels;
       }
+    }
+
+    // Live mic-level meter (throttled ~6/sec) so the user can SEE that audio is
+    // actually being captured — flat bars mean the mic/AudioContext isn't working.
+    const now = performance.now();
+    if (now - lastLevelUpdate > 150) {
+      lastLevelUpdate = now;
+      let sumSq = 0;
+      for (let i = 0; i < monoBuffer.length; i++) sumSq += monoBuffer[i] * monoBuffer[i];
+      const rms = Math.sqrt(sumSq / monoBuffer.length);
+      const bars = Math.max(0, Math.min(10, Math.round(rms * 300)));
+      setStatus(`🔴 Listening… [${"█".repeat(bars)}${"·".repeat(10 - bars)}]`, "active");
     }
 
     // Downsample to 16 kHz and convert to int16 PCM
