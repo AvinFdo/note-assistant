@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: `2.4.2 — Deploy to Cloud Run`** _(GATED — needs your confirmation; billable. Done: Stage 1, API server (2.1.x), Obsidian (2.2.5), Docker (2.4.1), Firestore backend (2.3.1), and the Cloudflare Pages web client. Remaining gated on your setup: OAuth (2.2.1–2.2.4/2.2.6), embeddings (2.3.2), Cloud Run/billing (2.4.2–2.4.3). 1.3.2 noise test needs human + mic.)_
+> **🎯 Current Focus: Deploy the Cloudflare Worker + Pages frontend** _(Backend is LIVE on Cloud Run with Firestore + proxy-secret auth. Next: user deploys `worker/` (set PROXY_SECRET + BACKEND_URL) and `web/` to Pages, then test on phone. Remaining gated: OAuth (2.2.1–2.2.4/2.2.6), embeddings (2.3.2), billing/monitoring (2.4.3). 1.3.2 noise test needs human + mic.)_
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -637,7 +637,7 @@
 
 ---
 
-#### `[ ]` 2.4.2 — Deploy to Cloud Run
+#### `[x]` 2.4.2 — Deploy to Cloud Run _(live at https://avin-333767001298.us-central1.run.app; Firestore backend; proxy-secret + API-key auth; --allow-unauthenticated + 2Gi, max-instances 1. SA granted cloudbuild.builds.builder, storage.objectViewer, datastore.user. WS/torch path not yet load-tested.)_
 **Context:** Cloud Run is ideal for our budget — it scales to zero when idle (no cost), supports WebSockets, and is GCP-native.
 **Details:**
 - Build and push container image to Artifact Registry

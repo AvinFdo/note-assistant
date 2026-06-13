@@ -51,6 +51,11 @@ WORKDIR /app
 # Application config (the package is already installed into the venv).
 COPY config ./config
 
+# The package is installed non-editable into the venv, so config.py's
+# module-relative path won't resolve to /app/config.  Point the loader at the
+# copied config explicitly (overridable at runtime via the same env var).
+ENV AVIN_CONFIG_PATH=/app/config/default.yaml
+
 # Run as a non-root user.
 RUN useradd --create-home --uid 10001 appuser
 USER appuser
