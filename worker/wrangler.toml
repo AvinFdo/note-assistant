@@ -4,8 +4,8 @@ compatibility_date = "2024-09-01"
 
 # Public (var) configuration — safe to commit.
 [vars]
-# The Cloud Run backend URL (set after you deploy the backend).
-BACKEND_URL = "https://REPLACE-with-your-cloud-run-url.run.app"
+# The Cloud Run backend URL (the deployed Avin backend).
+BACKEND_URL = "https://avin-333767001298.us-central1.run.app"
 # CORS origin to allow — your Cloudflare Pages URL (or "*" while testing).
 ALLOWED_ORIGIN = "*"
 
