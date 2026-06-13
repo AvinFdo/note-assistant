@@ -1,7 +1,7 @@
 """VADProcessor: per-frame voice activity detection using the Silero VAD model.
 
 This module provides a single-frame classifier that returns True when speech is
-detected in a 30ms audio frame (480 samples at 16kHz).  The continuous
+detected in a 32ms audio frame (512 samples at 16kHz).  The continuous
 speech-segmentation state machine (listen_continuous) is implemented in task
 1.7.2 and lives in audio.py.
 
@@ -14,7 +14,7 @@ Constants
 SAMPLE_RATE : int
     Expected sample rate in Hz (16 000).  Silero VAD requires exactly 16kHz.
 FRAME_SAMPLES : int
-    Number of samples per frame (480 = 30ms at 16kHz).  Silero's window size.
+    Number of samples per frame (512 = 32ms at 16kHz).  Silero v5's window size.
     Frames that are not exactly this length are *rejected* – the caller is
     responsible for chunking the audio stream into fixed-size frames.
 """
@@ -30,7 +30,7 @@ from assistant.config import config
 # ---------------------------------------------------------------------------
 
 SAMPLE_RATE: int = 16_000  # Hz — Silero VAD requires 16kHz input
-FRAME_SAMPLES: int = 480  # samples — 30ms window at 16kHz
+FRAME_SAMPLES: int = 512  # samples — Silero v5 requires exactly 512 @16kHz (32ms)
 
 
 class VADProcessor:
@@ -85,7 +85,7 @@ class VADProcessor:
         Parameters
         ----------
         audio_frame:
-            A 1-D NumPy array of exactly ``FRAME_SAMPLES`` (480) samples.
+            A 1-D NumPy array of exactly ``FRAME_SAMPLES`` (512) samples.
             Accepted dtypes:
             - ``float32`` — assumed already in ``[-1, 1]``; used as-is.
             - ``int16``   — normalised to ``[-1, 1]`` by dividing by 32 768.
