@@ -1,0 +1,14 @@
+name = "avin-proxy"
+main = "src/index.js"
+compatibility_date = "2024-09-01"
+
+# Public (var) configuration — safe to commit.
+[vars]
+# The Cloud Run backend URL (set after you deploy the backend).
+BACKEND_URL = "https://REPLACE-with-your-cloud-run-url.run.app"
+# CORS origin to allow — your Cloudflare Pages URL (or "*" while testing).
+ALLOWED_ORIGIN = "*"
+
+# PROXY_SECRET is NOT stored here — it is a secret.  Set it with:
+#   wrangler secret put PROXY_SECRET
+# Use the SAME value you pass to the backend as AVIN_API_PROXY_SECRET.

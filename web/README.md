@@ -60,9 +60,14 @@ Pages URL (HTTPS) or a local HTTPS tunnel for real phone testing.
    - **Framework preset:** None
    - **Build command:** *(leave empty — it's static)*
    - **Build output directory:** `web`
-4. Deploy. Open the `*.pages.dev` URL on your phone, open **Settings**, enter your
-   Cloud Run **Backend URL** (and API key if you set `AVIN_API_KEYS` on the backend),
-   and tap the mic.
+4. Deploy. Open the `*.pages.dev` URL on your phone, open **Settings**, and set
+   the **Backend URL** (see below), then tap the mic.
 
-> **CORS:** the backend (FastAPI) must allow the Pages origin for the REST calls.
-> Add CORS middleware allowing your `*.pages.dev` origin when you deploy the backend.
+> **Backend URL = the Cloudflare Worker, not Cloud Run directly.** For security
+> level B the app talks to the `../worker` proxy (`https://avin-proxy.<you>.workers.dev`),
+> which injects the shared `X-Proxy-Secret` so only Cloudflare can reach the backend.
+> See [`../worker/README.md`](../worker/README.md). (You *can* point straight at the
+> Cloud Run URL for quick local testing when the backend has no proxy secret set.)
+>
+> **CORS** is handled both by the Worker and by the backend's CORS middleware
+> (`AVIN_CORS_ORIGINS`, default `*`).

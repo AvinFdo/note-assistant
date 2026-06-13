@@ -19,6 +19,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .auth import require_api_key
+from .proxy_guard import ProxySecretMiddleware
 from .routes import router
 from .stream import stream_router
 
@@ -36,6 +37,13 @@ app = FastAPI(
 # Origins are configurable via AVIN_CORS_ORIGINS (comma-separated); default "*".
 # Credentials are NOT used (auth is via the X-API-Key header, not cookies), so a
 # wildcard origin is safe here.
+# Proxy-secret guard (security level B): when config.api.proxy_secret is set,
+# only requests carrying the matching X-Proxy-Secret header (injected by the
+# trusted Cloudflare Worker) are allowed.  Added BEFORE CORS so that CORS remains
+# the OUTERMOST middleware — Starlette runs middleware in reverse add-order, and
+# CORS must answer the credential-less preflight OPTIONS before the guard runs.
+app.add_middleware(ProxySecretMiddleware)
+
 _cors_origins = [
     o.strip() for o in os.environ.get("AVIN_CORS_ORIGINS", "*").split(",") if o.strip()
 ]

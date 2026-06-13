@@ -62,3 +62,4 @@ integrations:
 # NEVER commit real keys here.
 api:
   api_keys: []  # e.g. ["key1", "key2"] — empty means auth disabled
+  proxy_secret: ""  # shared secret the Cloudflare Worker injects as X-Proxy-Secret; empty disables the check (set AVIN_API_PROXY_SECRET in prod)
