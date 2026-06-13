@@ -56,6 +56,10 @@ COPY config ./config
 # copied config explicitly (overridable at runtime via the same env var).
 ENV AVIN_CONFIG_PATH=/app/config/default.yaml
 
+# Write transient segment WAVs to /tmp: the container runs as non-root and /app
+# is root-owned, plus Cloud Run's filesystem is ephemeral (/tmp is writable).
+ENV AVIN_AUDIO_RECORDINGS_DIR=/tmp/recordings
+
 # Pre-bake the Silero VAD model into the image so the first WebSocket connection
 # doesn't download it at runtime (removes cold-start lag + a runtime network
 # dependency, and the interactive trust prompt that has no TTY on Cloud Run).
