@@ -47,8 +47,8 @@ from assistant.vad import FRAME_SAMPLES, SAMPLE_RATE
 # ---------------------------------------------------------------------------
 
 # Default config: silence_duration_ms=1500, min_speech_duration_ms=250
-# At 16kHz / 480-sample frames: ~33.3 fps
-# silence_frames ≈ 50, min_speech_frames ≈ 8
+# At 16kHz / 512-sample frames: ~31.25 fps
+# silence_frames ≈ 46, min_speech_frames ≈ 7
 _SPEECH_FRAMES = 15  # > min_speech_frames threshold
 _SILENCE_FRAMES = 55  # > silence_frames threshold
 

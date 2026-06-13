@@ -2,7 +2,7 @@
 
 Handles ``WS /api/v1/stream``: a phone (or any browser-based) client streams raw
 PCM audio captured at 16kHz/mono/int16 over binary WebSocket frames.  The server
-buffers the incoming bytes, slices them into 480-sample frames (FRAME_SAMPLES),
+buffers the incoming bytes, slices them into 512-sample frames (FRAME_SAMPLES),
 and feeds them through the existing ``_SpeechSegmenter`` / ``VADProcessor`` state
 machine for segmentation.  When a speech segment completes, the audio is
 transcribed and processed through the ``Brain`` pipeline; results are streamed
@@ -12,7 +12,7 @@ WebSocket protocol
 ------------------
 Client → Server:
   - Binary frames: raw PCM chunks (16kHz, mono, int16).  Any chunk size is
-    accepted; the server splits into FRAME_SAMPLES (480-sample) windows.
+    accepted; the server splits into FRAME_SAMPLES (512-sample) windows.
   - Text frame: ``{"type": "control", "action": "stop"}`` — flush any
     in-progress segment and close.
 

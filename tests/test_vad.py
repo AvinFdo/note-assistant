@@ -203,7 +203,7 @@ class TestFrameSizeValidation:
         fake = _FakeModel(fixed_prob=0.5)
         vad = VADProcessor(model=fake)
         short = np.zeros(240, dtype=np.float32)
-        with pytest.raises(ValueError, match="480"):
+        with pytest.raises(ValueError, match="512"):
             vad.process_frame(short)
 
     def test_too_long_raises_value_error(self, monkeypatch):
@@ -211,5 +211,5 @@ class TestFrameSizeValidation:
         fake = _FakeModel(fixed_prob=0.5)
         vad = VADProcessor(model=fake)
         long_frame = np.zeros(960, dtype=np.float32)
-        with pytest.raises(ValueError, match="480"):
+        with pytest.raises(ValueError, match="512"):
             vad.process_frame(long_frame)

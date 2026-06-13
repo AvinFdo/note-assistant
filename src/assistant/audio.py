@@ -164,7 +164,7 @@ class _SpeechSegmenter:
         Parameters
         ----------
         frame:
-            A 1-D NumPy array of exactly ``FRAME_SAMPLES`` (480) samples.
+            A 1-D NumPy array of exactly ``FRAME_SAMPLES`` (512) samples.
 
         Returns
         -------
