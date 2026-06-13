@@ -67,6 +67,7 @@ class VADProcessor:
                 model="silero_vad",
                 force_reload=False,
                 onnx=False,
+                trust_repo=True,  # non-interactive (Cloud Run has no TTY for the trust prompt)
             )
             self._model = loaded_model
             self._utils = loaded_utils

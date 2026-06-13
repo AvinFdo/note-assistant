@@ -56,6 +56,13 @@ COPY config ./config
 # copied config explicitly (overridable at runtime via the same env var).
 ENV AVIN_CONFIG_PATH=/app/config/default.yaml
 
+# Pre-bake the Silero VAD model into the image so the first WebSocket connection
+# doesn't download it at runtime (removes cold-start lag + a runtime network
+# dependency, and the interactive trust prompt that has no TTY on Cloud Run).
+ENV TORCH_HOME=/opt/torch
+RUN python -c "import torch; torch.hub.load('snakers4/silero-vad', 'silero_vad', trust_repo=True, onnx=False)" \
+    && chmod -R a+rX /opt/torch
+
 # Run as a non-root user.
 RUN useradd --create-home --uid 10001 appuser
 USER appuser
