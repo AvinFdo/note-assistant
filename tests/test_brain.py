@@ -553,3 +553,62 @@ def test_normalise_importance_clamps_and_defaults() -> None:
     assert _normalise_importance(-5) == pytest.approx(0.0)  # clamp low
     assert _normalise_importance(None) == pytest.approx(0.5)  # default
     assert _normalise_importance("nope") == pytest.approx(0.5)  # default
+
+
+# ---------------------------------------------------------------------------
+# Scored-retrieval query embedding wiring (2.3.2 phase 4)
+# ---------------------------------------------------------------------------
+
+
+def test_query_embedded_and_passed_in_scored_mode(mem: Memory, monkeypatch) -> None:
+    """In scored mode the transcript is embedded and passed to assemble_context."""
+    import assistant.brain as brain_mod
+
+    monkeypatch.setattr(brain_mod.config.memory.retrieval, "mode", "scored")
+    resp = _make_response(is_noteworthy=True, summary="x", actions=[])
+    client = _make_mock_client(resp)
+
+    captured = {}
+
+    class _FakeEmbedder:
+        def embed_text(self, text):
+            return [0.4, 0.5]
+
+    real_assemble = mem.assemble_context
+
+    def spy_assemble(query_embedding=None):
+        captured["query"] = query_embedding
+        return real_assemble(query_embedding=query_embedding)
+
+    monkeypatch.setattr(mem, "assemble_context", spy_assemble)
+
+    Brain(memory=mem, client=client, embedder=_FakeEmbedder()).process(
+        "a transcript with clearly more than the ten words needed to pass the filter"
+    )
+    assert captured["query"] == [0.4, 0.5]
+
+
+def test_query_not_embedded_in_recency_mode(mem: Memory, monkeypatch) -> None:
+    import assistant.brain as brain_mod
+
+    monkeypatch.setattr(brain_mod.config.memory.retrieval, "mode", "recency")
+    resp = _make_response(is_noteworthy=True, summary="x", actions=[])
+    client = _make_mock_client(resp)
+
+    class _BoomEmbedder:
+        def embed_text(self, text):
+            raise AssertionError("must not embed the query in recency mode")
+
+    captured = {}
+    real_assemble = mem.assemble_context
+
+    def spy_assemble(query_embedding=None):
+        captured["query"] = query_embedding
+        return real_assemble(query_embedding=query_embedding)
+
+    monkeypatch.setattr(mem, "assemble_context", spy_assemble)
+
+    Brain(memory=mem, client=client, embedder=_BoomEmbedder()).process(
+        "a transcript with clearly more than the ten words needed to pass the filter"
+    )
+    assert captured["query"] is None

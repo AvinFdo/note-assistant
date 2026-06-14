@@ -518,7 +518,24 @@ class Memory:
     # Context assembly for LLM prompt enrichment
     # ------------------------------------------------------------------
 
-    def assemble_context(self) -> str:
+    def get_recent_noteworthy_notes(self, limit: int = 200) -> list[Note]:
+        """Return up to *limit* noteworthy notes, newest-first (with embeddings).
+
+        The candidate pool for both recency and scored context assembly.
+        """
+        rows = self._conn.execute(
+            """
+            SELECT id, conversation_id, summary, is_noteworthy, created_at, importance, embedding
+            FROM notes
+            WHERE is_noteworthy = 1
+            ORDER BY created_at DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [self._row_to_note(row) for row in rows]
+
+    def assemble_context(self, query_embedding: list[float] | None = None) -> str:
         """Assemble the "memory" section of the LLM prompt from three sources.
 
         Delegates formatting and truncation to
@@ -527,34 +544,29 @@ class Memory:
 
         Sources
         -------
-        1. **Recent History** — last ``config.memory.context_window_size`` noteworthy
-           notes (``is_noteworthy=1``), ordered newest-first.
+        1. **Recent History** — chosen by ``config.memory.retrieval``: either the
+           last ``context_window_size`` noteworthy notes (``recency`` mode) or the
+           top-``top_k`` by recency+importance+relevance (``scored`` mode, using
+           *query_embedding*).
         2. **Pending / recent actions** — last 10 actions (any status), newest-first.
-           Each line shows ``intent: <first detail value or raw JSON>``.
-        3. **Known Information** — all key-value pairs from ``context_window`` via
-           :meth:`get_all_context`.
+        3. **Known Information** — all key-value pairs from ``context_window``.
 
         Truncation
         ----------
         If the assembled string exceeds ``config.memory.max_context_tokens * 4``
-        characters (approximate: 1 token ≈ 4 chars), the **oldest history entries**
-        are dropped one-by-one until the string fits within the budget.
+        characters, the **oldest history entries** are dropped until it fits.
         """
-        cfg = _default_config.memory
+        from assistant.retrieval import select_context_summaries
 
-        # 1. Recent noteworthy history
-        rows = self._conn.execute(
-            """
-            SELECT summary
-            FROM notes
-            WHERE is_noteworthy = 1
-            ORDER BY created_at DESC
-            LIMIT ?
-            """,
-            (cfg.context_window_size,),
-        ).fetchall()
-        # history is newest-first; index 0 = newest, last = oldest
-        history: list[str] = [row["summary"] for row in rows]
+        cfg = _default_config.memory
+        rcfg = cfg.retrieval
+
+        # 1. Recent History — recency or scored selection over the candidate pool.
+        pool_limit = rcfg.candidate_pool if rcfg.mode == "scored" else cfg.context_window_size
+        notes = self.get_recent_noteworthy_notes(limit=pool_limit)
+        history: list[str] = select_context_summaries(
+            notes, query_embedding, rcfg, cfg.context_window_size, datetime.now()
+        )
 
         # 2. Recent actions (last 10)
         actions = self.get_recent_actions(limit=10)

@@ -51,6 +51,19 @@ class VadConfig:
 
 
 @dataclass
+class RetrievalConfig:
+    """Scored-retrieval tunables (2.3.2). ``mode='recency'`` = legacy behaviour."""
+
+    mode: str = "recency"  # recency | scored
+    top_k: int = 6  # notes surfaced into the prompt in scored mode
+    candidate_pool: int = 200  # how many recent noteworthy notes to score over
+    half_life_hours: float = 72.0  # recency decay half-life
+    weight_recency: float = 1.0
+    weight_importance: float = 1.0
+    weight_relevance: float = 1.0
+
+
+@dataclass
 class MemoryConfig:
     db_path: str = "data/assistant.db"
     context_window_size: int = 5
@@ -61,6 +74,7 @@ class MemoryConfig:
     # retrieval (2.3.2). Default False so deployed behaviour (and per-note cost)
     # is unchanged until the retrieval layer is switched on.
     embed_notes: bool = False
+    retrieval: RetrievalConfig = field(default_factory=RetrievalConfig)
 
 
 @dataclass
@@ -201,6 +215,20 @@ def _as_bool(raw: object) -> bool:
     return str(raw).strip().lower() in ("1", "true", "yes", "on")
 
 
+def _parse_retrieval(raw: object) -> RetrievalConfig:
+    if not isinstance(raw, dict):
+        return RetrievalConfig()
+    return RetrievalConfig(
+        mode=str(raw.get("mode", "recency")),
+        top_k=int(raw.get("top_k", 6)),
+        candidate_pool=int(raw.get("candidate_pool", 200)),
+        half_life_hours=float(raw.get("half_life_hours", 72.0)),
+        weight_recency=float(raw.get("weight_recency", 1.0)),
+        weight_importance=float(raw.get("weight_importance", 1.0)),
+        weight_relevance=float(raw.get("weight_relevance", 1.0)),
+    )
+
+
 def _parse_action_mode(raw: object, default: str = "auto_execute") -> ActionModeConfig:
     if isinstance(raw, dict):
         return ActionModeConfig(mode=str(raw.get("mode", default)))
@@ -251,6 +279,7 @@ def _parse_config(data: dict) -> Config:
             min_transcript_words=int(mem_raw.get("min_transcript_words", 10)),
             backend=str(mem_raw.get("backend", "sqlite")),
             embed_notes=_as_bool(mem_raw.get("embed_notes", False)),
+            retrieval=_parse_retrieval(mem_raw.get("retrieval", {})),
         ),
         actions=ActionsConfig(
             confidence_threshold=float(act_raw.get("confidence_threshold", 0.7)),

@@ -257,14 +257,8 @@ class Brain:
                 location=config.gcp.region,
             )
 
-    def _maybe_embed(self, text: str) -> list[float] | None:
-        """Embed *text* when note-embedding is enabled; best-effort (never raises).
-
-        Returns the vector, or ``None`` when disabled or on any embedding error
-        (so a transient embedding outage never blocks note persistence).
-        """
-        if not config.memory.embed_notes:
-            return None
+    def _embed(self, text: str) -> list[float] | None:
+        """Embed *text* best-effort (never raises); returns ``None`` on failure."""
         try:
             if self._embedder is None:
                 from assistant.embeddings import Embedder
@@ -272,8 +266,20 @@ class Brain:
                 self._embedder = Embedder()
             return self._embedder.embed_text(text)
         except Exception:  # noqa: BLE001
-            logger.exception("Note embedding failed; saving note without a vector")
+            logger.exception("Embedding failed; continuing without a vector")
             return None
+
+    def _maybe_embed(self, text: str) -> list[float] | None:
+        """Embed a note summary for storage when ``memory.embed_notes`` is on."""
+        if not config.memory.embed_notes:
+            return None
+        return self._embed(text)
+
+    def _embed_query(self, text: str) -> list[float] | None:
+        """Embed the transcript as a retrieval query when in scored mode."""
+        if config.memory.retrieval.mode != "scored":
+            return None
+        return self._embed(text)
 
     # ------------------------------------------------------------------
     # Public API
@@ -316,8 +322,9 @@ class Brain:
             self._memory.save_conversation(transcript)
             return ProcessingResult(is_noteworthy=False, summary_note="", actions=[])
 
-        # 1. Assemble context
-        context = self._memory.assemble_context()
+        # 1. Assemble context (scored retrieval embeds the transcript as the query)
+        query_embedding = self._embed_query(transcript)
+        context = self._memory.assemble_context(query_embedding=query_embedding)
 
         # 2. Build the full prompt
         prompt = _build_prompt(context, transcript)
