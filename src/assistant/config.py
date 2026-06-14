@@ -28,6 +28,7 @@ class GcpConfig:
 class ModelsConfig:
     transcription: str = "gemini-2.5-flash"
     reasoning: str = "gemini-2.5-flash"
+    embedding: str = "text-embedding-004"
 
 
 @dataclass
@@ -211,6 +212,7 @@ def _parse_config(data: dict) -> Config:
         models=ModelsConfig(
             transcription=str(models_raw.get("transcription", "gemini-2.5-flash")),
             reasoning=str(models_raw.get("reasoning", "gemini-2.5-flash")),
+            embedding=str(models_raw.get("embedding", "text-embedding-004")),
         ),
         audio=AudioConfig(
             sample_rate=int(audio_raw.get("sample_rate", 16000)),
