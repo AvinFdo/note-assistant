@@ -130,6 +130,13 @@ def test_retrieval_defaults_to_recency(tmp_path: Path) -> None:
     assert cfg.memory.retrieval.top_k == 6
 
 
+def test_retrieval_mode_env_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The nested retrieval.mode is flippable via env (the production toggle)."""
+    p = _write_yaml(tmp_path, _MINIMAL_YAML)
+    monkeypatch.setenv("AVIN_MEMORY_RETRIEVAL_MODE", "scored")
+    assert load_config(p).memory.retrieval.mode == "scored"
+
+
 def test_retrieval_block_parsed(tmp_path: Path) -> None:
     data = dict(_MINIMAL_YAML)
     data["memory"] = {

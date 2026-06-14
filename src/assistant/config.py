@@ -188,6 +188,12 @@ def _apply_env_overrides(data: dict) -> None:
         if env_val is not None:
             data.setdefault("integrations", {}).setdefault("obsidian", {})[obs_key] = env_val
 
+    # --- Nested memory.retrieval.mode override (the generic loop only reaches
+    # flat memory.* keys; this is the production toggle for scored retrieval). ---
+    retrieval_mode = os.environ.get("AVIN_MEMORY_RETRIEVAL_MODE")
+    if retrieval_mode is not None:
+        data.setdefault("memory", {}).setdefault("retrieval", {})["mode"] = retrieval_mode
+
     # --- Generic scalar overrides ---
     for env_key, value in os.environ.items():
         if not env_key.startswith("AVIN_"):
