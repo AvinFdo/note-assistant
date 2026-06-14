@@ -637,3 +637,13 @@ def test_assemble_context_scored_surfaces_relevant_note(mem: Memory, monkeypatch
     ctx = mem.assemble_context(query_embedding=[1.0, 0.0])
     assert "on-topic budget note" in ctx
     assert "off-topic lunch note" not in ctx
+
+
+def test_delete_note(mem: Memory) -> None:
+    cid = mem.save_conversation("transcript")
+    nid = mem.save_note(cid, "summary")
+    assert mem.delete_note(nid) is True
+    assert mem.count_notes() == 0
+    # Deleting again (or an unknown id) returns False.
+    assert mem.delete_note(nid) is False
+    assert mem.delete_note("nonexistent") is False

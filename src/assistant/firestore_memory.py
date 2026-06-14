@@ -230,6 +230,14 @@ class FirestoreMemory:
         """Set the embedding vector for an existing note."""
         self._notes.document(note_id).update({"embedding": embedding})
 
+    def delete_note(self, note_id: str) -> bool:
+        """Delete the note with *note_id*. Returns True if it existed."""
+        ref = self._notes.document(note_id)
+        if not ref.get().exists:
+            return False
+        ref.delete()
+        return True
+
     # ------------------------------------------------------------------
     # Actions
     # ------------------------------------------------------------------

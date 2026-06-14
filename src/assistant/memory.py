@@ -293,6 +293,12 @@ class Memory:
         )
         self._conn.commit()
 
+    def delete_note(self, note_id: str) -> bool:
+        """Delete the note with *note_id*. Returns True if a row was removed."""
+        cur = self._conn.execute("DELETE FROM notes WHERE id = ?", (note_id,))
+        self._conn.commit()
+        return cur.rowcount > 0
+
     def search_notes(self, query: str) -> list[Note]:
         """Return notes whose summary contains *query* (case-insensitive LIKE search).
 

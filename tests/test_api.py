@@ -145,6 +145,25 @@ def test_get_note_unknown_id_returns_404(client):
 
 
 # ---------------------------------------------------------------------------
+# DELETE /api/v1/notes/{id}
+# ---------------------------------------------------------------------------
+
+
+def test_delete_note_removes_it(client, mem):
+    note_id = mem.get_recent_notes(limit=1)[0].id
+    resp = client.delete(f"/api/v1/notes/{note_id}")
+    assert resp.status_code == 204
+    # Gone from the store and the API.
+    assert mem.count_notes() == 0
+    assert client.get(f"/api/v1/notes/{note_id}").status_code == 404
+
+
+def test_delete_note_unknown_id_returns_404(client):
+    resp = client.delete("/api/v1/notes/nonexistent-id-xyz")
+    assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
 # GET /api/v1/actions
 # ---------------------------------------------------------------------------
 
