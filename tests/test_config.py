@@ -97,9 +97,7 @@ def test_env_var_override_audio(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     assert cfg.audio.sample_rate == 44100
 
 
-def test_env_var_override_obsidian_github(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_env_var_override_obsidian_github(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Nested integrations.obsidian.* GitHub fields are injectable via env vars.
 
     The token in particular must come from the env (it's a secret, never in YAML).
