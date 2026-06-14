@@ -9,6 +9,7 @@ gcp:
 models:
   transcription: "gemini-2.5-flash"    # Model used for audio-to-text
   reasoning: "gemini-2.5-flash"        # Model used for note/action extraction
+  embedding: "text-embedding-004"      # Model used for semantic note embeddings (retrieval)
 
 # --- Audio ---
 audio:
