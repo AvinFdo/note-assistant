@@ -4,6 +4,7 @@ Endpoints
 ---------
 GET   /api/v1/notes               — list notes, paginated
 GET   /api/v1/notes/{id}          — note detail + conversation + actions
+DELETE /api/v1/notes/{id}         — delete a note
 GET   /api/v1/actions             — list actions with optional status/intent filters
 PATCH /api/v1/actions/{id}        — update action status
 POST  /api/v1/search              — keyword search over note summaries
@@ -18,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Generator
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from assistant.memory import Memory
 from assistant.memory_factory import create_memory
@@ -103,6 +104,14 @@ def get_note(note_id: str, memory: MemoryDep) -> NoteDetailResponse:
         conversation=ConversationOut.from_dataclass(conversation) if conversation else None,
         actions=[ActionOut.from_dataclass(a) for a in actions],
     )
+
+
+@router.delete("/notes/{note_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_note(note_id: str, memory: MemoryDep) -> Response:
+    """Delete a note by ID. 204 on success, 404 if it does not exist."""
+    if not memory.delete_note(note_id):
+        raise HTTPException(status_code=404, detail=f"Note '{note_id}' not found")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 # --- Actions ----------------------------------------------------------------

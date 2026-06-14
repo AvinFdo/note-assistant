@@ -172,7 +172,8 @@ function renderNote(msg) {
     meta.textContent = `note_id: ${msg.note_id}`;
     frag.appendChild(meta);
   }
-  prependCard("note", "Note", frag);
+  const card = prependCard("note", "Note", frag);
+  addNoteDeleteButton(card, msg.note_id);
 }
 
 /**
@@ -273,6 +274,49 @@ async function handleActionDecision(actionId, status, btnRow, card) {
   } catch (err) {
     showInlineError(card, `Failed to update action: ${err.message}`);
     // Re-enable buttons so the user can retry
+    btnRow.querySelectorAll("button").forEach(b => { b.disabled = false; });
+  }
+}
+
+/**
+ * Append a "Delete" button to a note *card* that removes the note via
+ * DELETE /api/v1/notes/{id} and removes the card on success.
+ * @param {HTMLElement} card
+ * @param {string} noteId
+ */
+function addNoteDeleteButton(card, noteId) {
+  if (!noteId) return;
+  const btnRow = document.createElement("div");
+  btnRow.className = "action-btns";
+  const btnDelete = document.createElement("button");
+  btnDelete.className = "btn-dismiss";
+  btnDelete.textContent = "Delete";
+  btnRow.appendChild(btnDelete);
+  card.appendChild(btnRow);
+  btnDelete.addEventListener("click", () => handleNoteDelete(noteId, btnRow, card));
+}
+
+/** Handle a Delete tap on a note card. */
+async function handleNoteDelete(noteId, btnRow, card) {
+  const backendUrl = getBackendUrl();
+  if (!backendUrl) {
+    showInlineError(card, "Backend URL not configured in Settings.");
+    return;
+  }
+  if (!window.confirm("Delete this note permanently?")) return;
+
+  btnRow.querySelectorAll("button").forEach(b => { b.disabled = true; });
+
+  try {
+    const resp = await fetch(`${backendUrl}/api/v1/notes/${noteId}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+    if (resp.status === 404) throw new Error("Note not found (already deleted?)");
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    card.remove();
+  } catch (err) {
+    showInlineError(card, `Delete failed: ${err.message}`);
     btnRow.querySelectorAll("button").forEach(b => { b.disabled = false; });
   }
 }
@@ -619,7 +663,8 @@ async function loadHistory() {
         frag.appendChild(meta);
       }
 
-      prependCard("history", "Note", frag);
+      const card = prependCard("history", "Note", frag);
+      addNoteDeleteButton(card, note.id);
     });
 
   } catch (err) {

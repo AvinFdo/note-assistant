@@ -50,6 +50,9 @@ class _FakeDocRef:
             self._data = {}
         self._data.update(data)
 
+    def delete(self) -> None:
+        self._data = None
+
     def get(self) -> _FakeSnapshot:
         return _FakeSnapshot(self._id, self._data)
 
@@ -297,3 +300,12 @@ def test_update_note_embedding(mem):
     note = mem.get_recent_notes(limit=1)[0]
     assert note.embedding == [0.5, 0.6, 0.7]
     assert mem.get_notes_without_embedding() == []
+
+
+def test_delete_note(mem):
+    cid = mem.save_conversation("transcript")
+    nid = mem.save_note(cid, "summary")
+    assert mem.delete_note(nid) is True
+    assert mem.count_notes() == 0
+    assert mem.delete_note(nid) is False
+    assert mem.delete_note("nonexistent") is False
