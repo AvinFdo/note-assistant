@@ -97,6 +97,21 @@ def test_env_var_override_audio(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     assert cfg.audio.sample_rate == 44100
 
 
+def test_env_var_override_obsidian_github(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Nested integrations.obsidian.* GitHub fields are injectable via env vars.
+
+    The token in particular must come from the env (it's a secret, never in YAML).
+    """
+    p = _write_yaml(tmp_path, _MINIMAL_YAML)
+    monkeypatch.setenv("AVIN_OBSIDIAN_GITHUB_REPO", "owner/vault")
+    monkeypatch.setenv("AVIN_OBSIDIAN_GITHUB_BRANCH", "notes")
+    monkeypatch.setenv("AVIN_OBSIDIAN_GITHUB_TOKEN", "tok_secret")
+    cfg = load_config(p)
+    assert cfg.integrations.obsidian.github_repo == "owner/vault"
+    assert cfg.integrations.obsidian.github_branch == "notes"
+    assert cfg.integrations.obsidian.github_token == "tok_secret"
+
+
 def test_env_var_override_models(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     p = _write_yaml(tmp_path, _MINIMAL_YAML)
     monkeypatch.setenv("AVIN_MODELS_TRANSCRIPTION", "gemini-override")
