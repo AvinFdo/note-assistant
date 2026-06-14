@@ -119,6 +119,22 @@ def test_env_var_override_models(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     assert cfg.models.transcription == "gemini-override"
 
 
+def test_embed_notes_defaults_false(tmp_path: Path) -> None:
+    cfg = load_config(_write_yaml(tmp_path, _MINIMAL_YAML))
+    assert cfg.memory.embed_notes is False
+
+
+def test_embed_notes_env_string_is_parsed_as_bool(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Env vars arrive as strings; 'true'/'false' must coerce correctly."""
+    p = _write_yaml(tmp_path, _MINIMAL_YAML)
+    monkeypatch.setenv("AVIN_MEMORY_EMBED_NOTES", "true")
+    assert load_config(p).memory.embed_notes is True
+    monkeypatch.setenv("AVIN_MEMORY_EMBED_NOTES", "false")
+    assert load_config(p).memory.embed_notes is False
+
+
 def test_avin_config_path_env_var(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     p = _write_yaml(tmp_path, _MINIMAL_YAML)
     monkeypatch.setenv("AVIN_CONFIG_PATH", str(p))

@@ -45,6 +45,11 @@ class _FakeDocRef:
         else:
             self._data = dict(data)
 
+    def update(self, data: dict) -> None:
+        if self._data is None:
+            self._data = {}
+        self._data.update(data)
+
     def get(self) -> _FakeSnapshot:
         return _FakeSnapshot(self._id, self._data)
 
@@ -261,3 +266,34 @@ def test_close_calls_client_close():
     m = FirestoreMemory(client=fake, user_id="u")
     m.close()
     assert fake.closed is True
+
+
+# ---------------------------------------------------------------------------
+# Scored-retrieval fields (2.3.2): importance + embedding
+# ---------------------------------------------------------------------------
+
+
+def test_save_note_roundtrips_importance_and_embedding(mem):
+    cid = mem.save_conversation("transcript")
+    mem.save_note(cid, "summary", is_noteworthy=True, importance=0.8, embedding=[0.1, 0.2, 0.3])
+    note = mem.get_recent_notes(limit=1)[0]
+    assert note.importance == 0.8
+    assert note.embedding == [0.1, 0.2, 0.3]
+
+
+def test_get_notes_without_embedding(mem):
+    cid = mem.save_conversation("transcript")
+    mem.save_note(cid, "no vector", embedding=None)
+    mem.save_note(cid, "has vector", embedding=[1.0, 2.0])
+    summaries = [n.summary for n in mem.get_notes_without_embedding()]
+    assert "no vector" in summaries
+    assert "has vector" not in summaries
+
+
+def test_update_note_embedding(mem):
+    cid = mem.save_conversation("transcript")
+    nid = mem.save_note(cid, "summary")
+    mem.update_note_embedding(nid, [0.5, 0.6, 0.7])
+    note = mem.get_recent_notes(limit=1)[0]
+    assert note.embedding == [0.5, 0.6, 0.7]
+    assert mem.get_notes_without_embedding() == []

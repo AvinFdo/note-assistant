@@ -52,6 +52,10 @@ class Note:
     summary: str
     is_noteworthy: bool
     created_at: str
+    # Scored-retrieval fields (2.3.2). Both are nullable: legacy notes written
+    # before this migration have None until backfilled / re-rated.
+    importance: float | None = None  # 0..1 (LLM 1-10 rating normalised)
+    embedding: list[float] | None = None  # semantic vector of the summary
 
 
 @dataclass
@@ -86,6 +90,8 @@ CREATE TABLE IF NOT EXISTS notes (
     summary         TEXT NOT NULL,
     is_noteworthy   INTEGER DEFAULT 1,
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    importance      REAL,            -- 0..1 (LLM rating); NULL = unrated/legacy
+    embedding       TEXT,            -- JSON float array; NULL = not yet embedded
     FOREIGN KEY (conversation_id) REFERENCES conversations(id)
 );
 
@@ -142,7 +148,22 @@ class Memory:
         self._conn = sqlite3.connect(resolved, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(_SCHEMA)
+        self._migrate_notes_columns()
         self._conn.commit()
+
+    def _migrate_notes_columns(self) -> None:
+        """Add the scored-retrieval columns to a pre-existing notes table.
+
+        ``CREATE TABLE IF NOT EXISTS`` never alters an existing table, so a DB
+        created before the 2.3.2 migration lacks ``importance`` / ``embedding``.
+        SQLite has no ``ADD COLUMN IF NOT EXISTS``, so we inspect the schema and
+        add only what's missing — a no-op on freshly created tables.
+        """
+        existing = {row["name"] for row in self._conn.execute("PRAGMA table_info(notes)")}
+        if "importance" not in existing:
+            self._conn.execute("ALTER TABLE notes ADD COLUMN importance REAL")
+        if "embedding" not in existing:
+            self._conn.execute("ALTER TABLE notes ADD COLUMN embedding TEXT")
 
     # ------------------------------------------------------------------
     # Conversations
@@ -198,15 +219,32 @@ class Memory:
         conversation_id: str,
         summary: str,
         is_noteworthy: bool = True,
+        importance: float | None = None,
+        embedding: list[float] | None = None,
     ) -> str:
-        """Persist a note linked to *conversation_id* and return its UUID string."""
+        """Persist a note linked to *conversation_id* and return its UUID string.
+
+        ``importance`` (0..1) and ``embedding`` are optional scored-retrieval
+        fields; when omitted they are stored as NULL and the note is treated as
+        unrated / not-yet-embedded by the retrieval layer.
+        """
         note_id = _new_id()
+        embedding_json = json.dumps(embedding) if embedding is not None else None
         self._conn.execute(
             """
-            INSERT INTO notes (id, conversation_id, summary, is_noteworthy, created_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO notes
+                (id, conversation_id, summary, is_noteworthy, created_at, importance, embedding)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (note_id, conversation_id, summary, 1 if is_noteworthy else 0, _now()),
+            (
+                note_id,
+                conversation_id,
+                summary,
+                1 if is_noteworthy else 0,
+                _now(),
+                importance,
+                embedding_json,
+            ),
         )
         self._conn.commit()
         return note_id
@@ -215,28 +253,45 @@ class Memory:
         """Return up to *limit* notes, newest first."""
         rows = self._conn.execute(
             """
-            SELECT id, conversation_id, summary, is_noteworthy, created_at
+            SELECT id, conversation_id, summary, is_noteworthy, created_at, importance, embedding
             FROM notes
             ORDER BY created_at DESC
             LIMIT ?
             """,
             (limit,),
         ).fetchall()
-        return [
-            Note(
-                id=row["id"],
-                conversation_id=row["conversation_id"],
-                summary=row["summary"],
-                is_noteworthy=bool(row["is_noteworthy"]),
-                created_at=row["created_at"],
-            )
-            for row in rows
-        ]
+        return [self._row_to_note(row) for row in rows]
 
     def count_notes(self) -> int:
         """Return the total number of notes stored."""
         row = self._conn.execute("SELECT COUNT(*) FROM notes").fetchone()
         return row[0]
+
+    def get_notes_without_embedding(self, limit: int = 500) -> list[Note]:
+        """Return up to *limit* notes that have no embedding yet (oldest first).
+
+        Used by the one-off backfill to embed legacy notes.  Oldest-first so a
+        resumable backfill makes steady forward progress.
+        """
+        rows = self._conn.execute(
+            """
+            SELECT id, conversation_id, summary, is_noteworthy, created_at, importance, embedding
+            FROM notes
+            WHERE embedding IS NULL
+            ORDER BY created_at ASC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [self._row_to_note(row) for row in rows]
+
+    def update_note_embedding(self, note_id: str, embedding: list[float]) -> None:
+        """Set the embedding vector (JSON-serialised) for an existing note."""
+        self._conn.execute(
+            "UPDATE notes SET embedding = ? WHERE id = ?",
+            (json.dumps(embedding), note_id),
+        )
+        self._conn.commit()
 
     def search_notes(self, query: str) -> list[Note]:
         """Return notes whose summary contains *query* (case-insensitive LIKE search).
@@ -246,23 +301,14 @@ class Memory:
         pattern = f"%{query}%"
         rows = self._conn.execute(
             """
-            SELECT id, conversation_id, summary, is_noteworthy, created_at
+            SELECT id, conversation_id, summary, is_noteworthy, created_at, importance, embedding
             FROM notes
             WHERE summary LIKE ?
             ORDER BY created_at DESC
             """,
             (pattern,),
         ).fetchall()
-        return [
-            Note(
-                id=row["id"],
-                conversation_id=row["conversation_id"],
-                summary=row["summary"],
-                is_noteworthy=bool(row["is_noteworthy"]),
-                created_at=row["created_at"],
-            )
-            for row in rows
-        ]
+        return [self._row_to_note(row) for row in rows]
 
     # ------------------------------------------------------------------
     # Actions
@@ -337,6 +383,26 @@ class Memory:
         return [self._row_to_action(row) for row in rows]
 
     @staticmethod
+    def _row_to_note(row: sqlite3.Row) -> Note:
+        keys = row.keys()
+        importance = row["importance"] if "importance" in keys else None
+        embedding = None
+        if "embedding" in keys and row["embedding"] is not None:
+            try:
+                embedding = json.loads(row["embedding"])
+            except (json.JSONDecodeError, TypeError):
+                embedding = None
+        return Note(
+            id=row["id"],
+            conversation_id=row["conversation_id"],
+            summary=row["summary"],
+            is_noteworthy=bool(row["is_noteworthy"]),
+            created_at=row["created_at"],
+            importance=importance,
+            embedding=embedding,
+        )
+
+    @staticmethod
     def _row_to_action(row: sqlite3.Row) -> Action:
         try:
             details = json.loads(row["details"])
@@ -378,23 +444,14 @@ class Memory:
         """Return all notes linked to *conversation_id*, newest first."""
         rows = self._conn.execute(
             """
-            SELECT id, conversation_id, summary, is_noteworthy, created_at
+            SELECT id, conversation_id, summary, is_noteworthy, created_at, importance, embedding
             FROM notes
             WHERE conversation_id = ?
             ORDER BY created_at DESC
             """,
             (conversation_id,),
         ).fetchall()
-        return [
-            Note(
-                id=row["id"],
-                conversation_id=row["conversation_id"],
-                summary=row["summary"],
-                is_noteworthy=bool(row["is_noteworthy"]),
-                created_at=row["created_at"],
-            )
-            for row in rows
-        ]
+        return [self._row_to_note(row) for row in rows]
 
     def get_actions_for_conversation(self, conversation_id: str) -> list[Action]:
         """Return all actions linked to *conversation_id*, newest first."""

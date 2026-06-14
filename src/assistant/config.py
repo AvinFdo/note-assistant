@@ -57,6 +57,10 @@ class MemoryConfig:
     max_context_tokens: int = 4000
     min_transcript_words: int = 10
     backend: str = "sqlite"  # sqlite | firestore
+    # When True, the brain embeds each saved note's summary for semantic
+    # retrieval (2.3.2). Default False so deployed behaviour (and per-note cost)
+    # is unchanged until the retrieval layer is switched on.
+    embed_notes: bool = False
 
 
 @dataclass
@@ -186,6 +190,17 @@ def _apply_env_overrides(data: dict) -> None:
                 break
 
 
+def _as_bool(raw: object) -> bool:
+    """Coerce a YAML bool or an env-var string ("true"/"1"/"yes") to bool.
+
+    Env overrides always arrive as strings, so a naive ``bool("false")`` would
+    be ``True``; this normalises the common truthy spellings instead.
+    """
+    if isinstance(raw, bool):
+        return raw
+    return str(raw).strip().lower() in ("1", "true", "yes", "on")
+
+
 def _parse_action_mode(raw: object, default: str = "auto_execute") -> ActionModeConfig:
     if isinstance(raw, dict):
         return ActionModeConfig(mode=str(raw.get("mode", default)))
@@ -235,6 +250,7 @@ def _parse_config(data: dict) -> Config:
             max_context_tokens=int(mem_raw.get("max_context_tokens", 4000)),
             min_transcript_words=int(mem_raw.get("min_transcript_words", 10)),
             backend=str(mem_raw.get("backend", "sqlite")),
+            embed_notes=_as_bool(mem_raw.get("embed_notes", False)),
         ),
         actions=ActionsConfig(
             confidence_threshold=float(act_raw.get("confidence_threshold", 0.7)),

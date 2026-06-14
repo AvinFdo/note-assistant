@@ -127,9 +127,18 @@ class TestErrorClassification:
 
 
 def test_import_no_network():
-    """Importing the module must not trigger any network activity."""
-    import importlib
+    """Importing the module must not trigger network/client construction.
 
-    import assistant.embeddings as emb_mod
+    Imported in a clean subprocess so the check is real (and so it never
+    redefines this module's exception classes mid-run, which would break the
+    ``pytest.raises`` identity in the tests above under randomised ordering).
+    """
+    import subprocess
+    import sys
 
-    importlib.reload(emb_mod)
+    result = subprocess.run(
+        [sys.executable, "-c", "import assistant.embeddings"],
+        capture_output=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stderr.decode()
