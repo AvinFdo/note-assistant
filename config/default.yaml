@@ -36,6 +36,14 @@ memory:
   min_transcript_words: 10    # Transcripts with fewer words skip the LLM call entirely
   backend: "sqlite"           # Storage backend: sqlite | firestore (firestore for Cloud Run)
   embed_notes: false          # Embed each saved note for semantic retrieval (2.3.2). Off until rollout.
+  retrieval:                  # How "Recent History" notes are chosen for the LLM prompt
+    mode: "recency"           # recency (last N) | scored (recency+importance+relevance)
+    top_k: 6                  # notes surfaced in scored mode
+    candidate_pool: 200       # recent noteworthy notes scored over in scored mode
+    half_life_hours: 72.0     # recency decay half-life
+    weight_recency: 1.0
+    weight_importance: 1.0
+    weight_relevance: 1.0
 
 # --- Actions ---
 actions:

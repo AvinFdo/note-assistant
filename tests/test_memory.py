@@ -596,3 +596,44 @@ def test_migration_adds_columns_to_legacy_db(tmp_path) -> None:
     assert note.summary == "legacy note"
     assert note.importance is None and note.embedding is None
     m.close()
+
+
+# ---------------------------------------------------------------------------
+# Scored context assembly (2.3.2 phase 4)
+# ---------------------------------------------------------------------------
+
+
+def test_get_recent_noteworthy_notes_filters(mem: Memory) -> None:
+    cid = mem.save_conversation("c")
+    mem.save_note(cid, "keep me", is_noteworthy=True)
+    mem.save_note(cid, "drop me", is_noteworthy=False)
+    summaries = [n.summary for n in mem.get_recent_noteworthy_notes()]
+    assert "keep me" in summaries
+    assert "drop me" not in summaries
+
+
+def test_assemble_context_recency_mode_default(mem: Memory) -> None:
+    """Default (recency) mode keeps the legacy newest-first behaviour."""
+    cid = mem.save_conversation("c")
+    mem.save_note(cid, "older note", is_noteworthy=True)
+    mem.save_note(cid, "newer note", is_noteworthy=True)
+    ctx = mem.assemble_context()
+    assert "older note" in ctx and "newer note" in ctx
+
+
+def test_assemble_context_scored_surfaces_relevant_note(mem: Memory, monkeypatch) -> None:
+    """In scored mode, a semantically matching note is surfaced via the query embedding."""
+    import assistant.config as config_mod
+
+    rcfg = config_mod.config.memory.retrieval
+    monkeypatch.setattr(rcfg, "mode", "scored")
+    monkeypatch.setattr(rcfg, "top_k", 1)
+    monkeypatch.setattr(rcfg, "weight_relevance", 5.0)
+
+    cid = mem.save_conversation("c")
+    mem.save_note(cid, "on-topic budget note", is_noteworthy=True, embedding=[1.0, 0.0])
+    mem.save_note(cid, "off-topic lunch note", is_noteworthy=True, embedding=[0.0, 1.0])
+
+    ctx = mem.assemble_context(query_embedding=[1.0, 0.0])
+    assert "on-topic budget note" in ctx
+    assert "off-topic lunch note" not in ctx

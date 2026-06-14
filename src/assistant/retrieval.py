@@ -142,3 +142,45 @@ def rank_memories(
 
     scored.sort(key=lambda s: s.score, reverse=True)
     return scored[:top_k]
+
+
+def select_context_summaries(
+    notes: list[Note],
+    query_embedding: list[float] | None,
+    retrieval_cfg,
+    recency_window: int,
+    now: datetime,
+) -> list[str]:
+    """Pick the note summaries for the prompt's "Recent History" section.
+
+    A thin adapter over :func:`rank_memories` shared by both memory backends so
+    their scored/recency behaviour stays identical.
+
+    Args:
+        notes:           Candidate notes, newest-first.
+        query_embedding: Current transcript embedding (or ``None``).
+        retrieval_cfg:   ``config.memory.retrieval`` (mode/top_k/weights/…).
+        recency_window:  How many notes to keep in legacy ``recency`` mode.
+        now:             Reference time for recency decay.
+
+    Returns:
+        Summary strings, best-first (scored) or newest-first (recency).
+    """
+    if retrieval_cfg.mode == "scored":
+        weights = RetrievalWeights(
+            recency=retrieval_cfg.weight_recency,
+            importance=retrieval_cfg.weight_importance,
+            relevance=retrieval_cfg.weight_relevance,
+        )
+        ranked = rank_memories(
+            query_embedding,
+            notes,
+            now,
+            weights=weights,
+            half_life_hours=retrieval_cfg.half_life_hours,
+            top_k=retrieval_cfg.top_k,
+        )
+        return [s.note.summary for s in ranked]
+
+    # Legacy recency mode: newest-first, capped at the context window.
+    return [n.summary for n in notes[:recency_window]]

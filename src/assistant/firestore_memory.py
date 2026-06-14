@@ -310,13 +310,25 @@ class FirestoreMemory:
     # Context assembly (shared with SQLite Memory)
     # ------------------------------------------------------------------
 
-    def assemble_context(self) -> str:
-        """Assemble the LLM prompt context — identical format to SQLite Memory."""
-        cfg = _default_config.memory
+    def get_recent_noteworthy_notes(self, limit: int = 200) -> list[Note]:
+        """Return up to *limit* noteworthy notes, newest-first (with embeddings)."""
+        docs = [d for d in self._docs(self._notes) if d.get("is_noteworthy", True)]
+        docs.sort(key=lambda d: d.get("created_at", ""), reverse=True)
+        return [self._to_note(d) for d in docs[:limit]]
 
-        # 1. Recent noteworthy history, newest-first, limited.
-        notes = [n for n in self.get_recent_notes(limit=10_000) if n.is_noteworthy]
-        history: list[str] = [n.summary for n in notes[: cfg.context_window_size]]
+    def assemble_context(self, query_embedding: list[float] | None = None) -> str:
+        """Assemble the LLM prompt context — identical format to SQLite Memory."""
+        from assistant.retrieval import select_context_summaries
+
+        cfg = _default_config.memory
+        rcfg = cfg.retrieval
+
+        # 1. Recent History — recency or scored selection over the candidate pool.
+        pool_limit = rcfg.candidate_pool if rcfg.mode == "scored" else cfg.context_window_size
+        notes = self.get_recent_noteworthy_notes(limit=pool_limit)
+        history: list[str] = select_context_summaries(
+            notes, query_embedding, rcfg, cfg.context_window_size, datetime.now()
+        )
 
         # 2. Recent actions (last 10).
         action_lines: list[str] = []

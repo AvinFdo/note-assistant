@@ -124,6 +124,24 @@ def test_embed_notes_defaults_false(tmp_path: Path) -> None:
     assert cfg.memory.embed_notes is False
 
 
+def test_retrieval_defaults_to_recency(tmp_path: Path) -> None:
+    cfg = load_config(_write_yaml(tmp_path, _MINIMAL_YAML))
+    assert cfg.memory.retrieval.mode == "recency"
+    assert cfg.memory.retrieval.top_k == 6
+
+
+def test_retrieval_block_parsed(tmp_path: Path) -> None:
+    data = dict(_MINIMAL_YAML)
+    data["memory"] = {
+        **_MINIMAL_YAML["memory"],
+        "retrieval": {"mode": "scored", "top_k": 3, "weight_relevance": 2.5},
+    }
+    cfg = load_config(_write_yaml(tmp_path, data))
+    assert cfg.memory.retrieval.mode == "scored"
+    assert cfg.memory.retrieval.top_k == 3
+    assert cfg.memory.retrieval.weight_relevance == 2.5
+
+
 def test_embed_notes_env_string_is_parsed_as_bool(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
