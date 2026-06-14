@@ -100,12 +100,62 @@ _RESPONSE_SCHEMA = {
                         "type": "number",
                         "description": "0.0 to 1.0 confidence that this action was genuinely intended",
                     },
+                    # Gemini's structured-output (Vertex) drops free-form objects
+                    # that declare no properties, so the union of every intent's
+                    # fields is enumerated explicitly here. The model fills only
+                    # the fields relevant to the chosen intent and omits the rest.
                     "details": {
                         "type": "object",
                         "description": (
-                            "Action-specific fields (task, recipient, subject, body, "
-                            "title, time, topic, etc.)"
+                            "Action-specific fields. Populate only those relevant "
+                            "to the chosen intent: create_todo→task (and due if "
+                            "stated); send_email→recipient, subject, body; "
+                            "add_calendar→title, datetime, attendees; "
+                            "research_topic→topic."
                         ),
+                        "properties": {
+                            # create_todo
+                            "task": {
+                                "type": "string",
+                                "description": "The to-do item / task to be done (create_todo).",
+                            },
+                            "due": {
+                                "type": "string",
+                                "description": "Optional due date/time for the task, if stated.",
+                            },
+                            # send_email
+                            "recipient": {
+                                "type": "string",
+                                "description": "Email recipient (send_email).",
+                            },
+                            "subject": {
+                                "type": "string",
+                                "description": "Email subject line (send_email).",
+                            },
+                            "body": {
+                                "type": "string",
+                                "description": "Email body text (send_email).",
+                            },
+                            # add_calendar
+                            "title": {
+                                "type": "string",
+                                "description": "Calendar event title (add_calendar).",
+                            },
+                            "datetime": {
+                                "type": "string",
+                                "description": "Event date/time, ISO-8601 if possible (add_calendar).",
+                            },
+                            "attendees": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Event attendees (add_calendar).",
+                            },
+                            # research_topic
+                            "topic": {
+                                "type": "string",
+                                "description": "The topic the user wants to research (research_topic).",
+                            },
+                        },
                     },
                 },
                 "required": ["intent", "confidence", "details"],

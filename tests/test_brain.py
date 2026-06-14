@@ -437,3 +437,26 @@ def test_min_transcript_words_threshold_from_config(
     brain_below = Brain(memory=mem, client=client_below)
     brain_below.process("One two three four")  # 4 words
     client_below.models.generate_content.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Structured-output schema: details must declare explicit properties
+# ---------------------------------------------------------------------------
+
+
+def test_details_schema_declares_intent_properties() -> None:
+    """REGRESSION: the action ``details`` object must declare explicit properties.
+
+    Gemini's Vertex structured-output silently drops free-form objects that
+    declare no ``properties`` (it returned ``details: {}`` for every action).
+    Enumerating the union of intent fields is what makes the model populate
+    them, so guard against a future revert to an empty object schema.
+    """
+    from assistant.brain import _RESPONSE_SCHEMA
+
+    details = _RESPONSE_SCHEMA["properties"]["actions"]["items"]["properties"]["details"]
+    props = details.get("properties", {})
+
+    # create_todo, send_email, add_calendar, research_topic fields must all exist.
+    for field_name in ("task", "recipient", "subject", "body", "title", "datetime", "topic"):
+        assert field_name in props, f"details schema missing '{field_name}' property"
