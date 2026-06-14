@@ -111,12 +111,15 @@ class FirestoreMemory:
 
     @staticmethod
     def _to_note(d: dict) -> Note:
+        embedding = d.get("embedding")
         return Note(
             id=d["id"],
             conversation_id=d.get("conversation_id", ""),
             summary=d.get("summary", ""),
             is_noteworthy=bool(d.get("is_noteworthy", True)),
             created_at=d.get("created_at", ""),
+            importance=d.get("importance"),
+            embedding=list(embedding) if embedding is not None else None,
         )
 
     @staticmethod
@@ -173,7 +176,14 @@ class FirestoreMemory:
     # Notes
     # ------------------------------------------------------------------
 
-    def save_note(self, conversation_id: str, summary: str, is_noteworthy: bool = True) -> str:
+    def save_note(
+        self,
+        conversation_id: str,
+        summary: str,
+        is_noteworthy: bool = True,
+        importance: float | None = None,
+        embedding: list[float] | None = None,
+    ) -> str:
         note_id = _new_id()
         self._notes.document(note_id).set(
             {
@@ -181,6 +191,8 @@ class FirestoreMemory:
                 "summary": summary,
                 "is_noteworthy": bool(is_noteworthy),
                 "created_at": _now(),
+                "importance": importance,
+                "embedding": embedding,
             }
         )
         return note_id
@@ -207,6 +219,16 @@ class FirestoreMemory:
 
     def count_notes(self) -> int:
         return len(self._docs(self._notes))
+
+    def get_notes_without_embedding(self, limit: int = 500) -> list[Note]:
+        """Return up to *limit* notes lacking an embedding (oldest first)."""
+        docs = [d for d in self._docs(self._notes) if not d.get("embedding")]
+        docs.sort(key=lambda d: d.get("created_at", ""))
+        return [self._to_note(d) for d in docs[:limit]]
+
+    def update_note_embedding(self, note_id: str, embedding: list[float]) -> None:
+        """Set the embedding vector for an existing note."""
+        self._notes.document(note_id).update({"embedding": embedding})
 
     # ------------------------------------------------------------------
     # Actions

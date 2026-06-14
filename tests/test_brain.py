@@ -460,3 +460,96 @@ def test_details_schema_declares_intent_properties() -> None:
     # create_todo, send_email, add_calendar, research_topic fields must all exist.
     for field_name in ("task", "recipient", "subject", "body", "title", "datetime", "topic"):
         assert field_name in props, f"details schema missing '{field_name}' property"
+
+
+# ---------------------------------------------------------------------------
+# Importance + embedding (2.3.2 phase 2)
+# ---------------------------------------------------------------------------
+
+
+def test_importance_normalised_and_persisted(mem: Memory) -> None:
+    """The model's 1-10 importance is normalised to 0..1 and stored on the note."""
+    resp = _make_response(is_noteworthy=True, summary="Important decision", actions=[])
+    resp["importance"] = 10  # max → 1.0
+    client = _make_mock_client(resp)
+    Brain(memory=mem, client=client).process(
+        "a transcript with clearly more than the ten words needed to pass the filter"
+    )
+    note = mem.get_recent_notes(limit=1)[0]
+    assert note.importance == pytest.approx(1.0)
+
+
+def test_importance_missing_defaults_neutral(mem: Memory) -> None:
+    resp = _make_response(is_noteworthy=True, summary="x", actions=[])
+    # no 'importance' key
+    client = _make_mock_client(resp)
+    Brain(memory=mem, client=client).process(
+        "a transcript with clearly more than the ten words needed to pass the filter"
+    )
+    assert mem.get_recent_notes(limit=1)[0].importance == pytest.approx(0.5)
+
+
+def test_embedding_skipped_when_disabled(mem: Memory, monkeypatch) -> None:
+    """With embed_notes False (default), no embedder is used and embedding is None."""
+    import assistant.brain as brain_mod
+
+    monkeypatch.setattr(brain_mod.config.memory, "embed_notes", False)
+    resp = _make_response(is_noteworthy=True, summary="x", actions=[])
+    client = _make_mock_client(resp)
+
+    class _BoomEmbedder:
+        def embed_text(self, text):
+            raise AssertionError("embedder must not be called when embed_notes=False")
+
+    Brain(memory=mem, client=client, embedder=_BoomEmbedder()).process(
+        "a transcript with clearly more than the ten words needed to pass the filter"
+    )
+    assert mem.get_recent_notes(limit=1)[0].embedding is None
+
+
+def test_embedding_used_when_enabled(mem: Memory, monkeypatch) -> None:
+    import assistant.brain as brain_mod
+
+    monkeypatch.setattr(brain_mod.config.memory, "embed_notes", True)
+    resp = _make_response(is_noteworthy=True, summary="x", actions=[])
+    client = _make_mock_client(resp)
+
+    class _FakeEmbedder:
+        def embed_text(self, text):
+            return [0.1, 0.2, 0.3]
+
+    Brain(memory=mem, client=client, embedder=_FakeEmbedder()).process(
+        "a transcript with clearly more than the ten words needed to pass the filter"
+    )
+    assert mem.get_recent_notes(limit=1)[0].embedding == [0.1, 0.2, 0.3]
+
+
+def test_embedding_failure_is_best_effort(mem: Memory, monkeypatch) -> None:
+    """An embedder error must not block note persistence."""
+    import assistant.brain as brain_mod
+
+    monkeypatch.setattr(brain_mod.config.memory, "embed_notes", True)
+    resp = _make_response(is_noteworthy=True, summary="x", actions=[])
+    client = _make_mock_client(resp)
+
+    class _FlakyEmbedder:
+        def embed_text(self, text):
+            raise RuntimeError("embedding service down")
+
+    result = Brain(memory=mem, client=client, embedder=_FlakyEmbedder()).process(
+        "a transcript with clearly more than the ten words needed to pass the filter"
+    )
+    assert result.is_noteworthy is True
+    note = mem.get_recent_notes(limit=1)[0]
+    assert note.embedding is None  # saved despite embedding failure
+
+
+def test_normalise_importance_clamps_and_defaults() -> None:
+    from assistant.brain import _normalise_importance
+
+    assert _normalise_importance(1) == pytest.approx(0.0)
+    assert _normalise_importance(10) == pytest.approx(1.0)
+    assert _normalise_importance(100) == pytest.approx(1.0)  # clamp high
+    assert _normalise_importance(-5) == pytest.approx(0.0)  # clamp low
+    assert _normalise_importance(None) == pytest.approx(0.5)  # default
+    assert _normalise_importance("nope") == pytest.approx(0.5)  # default

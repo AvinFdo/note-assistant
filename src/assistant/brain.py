@@ -14,12 +14,16 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from google import genai
 from google.genai import types
 
 from assistant.config import config
 from assistant.memory import Memory
+
+if TYPE_CHECKING:
+    from assistant.embeddings import Embedder
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +85,14 @@ _RESPONSE_SCHEMA = {
         "summary_note": {
             "type": "string",
             "description": "A concise summary of the key points. Empty string if not noteworthy.",
+        },
+        "importance": {
+            "type": "integer",
+            "description": (
+                "How important/memorable this note is, 1 (mundane, e.g. small "
+                "talk) to 10 (highly significant, e.g. a major decision or "
+                "deadline). Use 1 when not noteworthy."
+            ),
         },
         "actions": {
             "type": "array",
@@ -162,13 +174,26 @@ _RESPONSE_SCHEMA = {
             },
         },
     },
-    "required": ["is_noteworthy", "summary_note", "actions"],
+    "required": ["is_noteworthy", "summary_note", "importance", "actions"],
 }
 
 
 # ---------------------------------------------------------------------------
 # Prompt builder
 # ---------------------------------------------------------------------------
+
+
+def _normalise_importance(raw: object) -> float:
+    """Map the model's 1-10 importance rating to a 0..1 float.
+
+    Defaults to 0.5 (neutral) when the value is missing or unparseable, and
+    clamps out-of-range values to [0, 1].
+    """
+    try:
+        scaled = (float(raw) - 1.0) / 9.0  # 1→0.0, 10→1.0
+    except (TypeError, ValueError):
+        return 0.5
+    return max(0.0, min(1.0, scaled))
 
 
 def _build_prompt(context: str, transcript: str) -> str:
@@ -208,10 +233,21 @@ class Brain:
         client: An optional pre-constructed ``genai.Client``.  When *None* the real
                 Vertex AI client is built from :data:`assistant.config.config`.
                 Pass a mock client in tests to avoid live API calls.
+        embedder: An optional :class:`~assistant.embeddings.Embedder` used to embed
+                each saved note's summary when ``config.memory.embed_notes`` is
+                True.  Lazily constructed on first use when *None*; inject a mock
+                in tests.  Embedding is best-effort — a failure logs and the note
+                is still saved without a vector.
     """
 
-    def __init__(self, memory: Memory, client: genai.Client | None = None) -> None:
+    def __init__(
+        self,
+        memory: Memory,
+        client: genai.Client | None = None,
+        embedder: Embedder | None = None,
+    ) -> None:
         self._memory = memory
+        self._embedder = embedder
         if client is not None:
             self._client = client
         else:
@@ -220,6 +256,24 @@ class Brain:
                 project=config.gcp.project_id,
                 location=config.gcp.region,
             )
+
+    def _maybe_embed(self, text: str) -> list[float] | None:
+        """Embed *text* when note-embedding is enabled; best-effort (never raises).
+
+        Returns the vector, or ``None`` when disabled or on any embedding error
+        (so a transient embedding outage never blocks note persistence).
+        """
+        if not config.memory.embed_notes:
+            return None
+        try:
+            if self._embedder is None:
+                from assistant.embeddings import Embedder
+
+                self._embedder = Embedder()
+            return self._embedder.embed_text(text)
+        except Exception:  # noqa: BLE001
+            logger.exception("Note embedding failed; saving note without a vector")
+            return None
 
     # ------------------------------------------------------------------
     # Public API
@@ -294,6 +348,7 @@ class Brain:
 
         is_noteworthy: bool = bool(data.get("is_noteworthy", False))
         summary_note: str = str(data.get("summary_note", ""))
+        importance: float = _normalise_importance(data.get("importance"))
         raw_actions: list[dict] = data.get("actions", [])
 
         action_items: list[ActionItem] = []
@@ -316,7 +371,14 @@ class Brain:
         cid = self._memory.save_conversation(transcript)
 
         if is_noteworthy:
-            self._memory.save_note(cid, summary_note, is_noteworthy=True)
+            embedding = self._maybe_embed(summary_note)
+            self._memory.save_note(
+                cid,
+                summary_note,
+                is_noteworthy=True,
+                importance=importance,
+                embedding=embedding,
+            )
 
             threshold: float = config.actions.confidence_threshold
 

@@ -529,3 +529,70 @@ def test_count_notes_after_saves(mem: Memory) -> None:
     assert mem.count_notes() == 1
     mem.save_note(cid, "note two")
     assert mem.count_notes() == 2
+
+
+# ---------------------------------------------------------------------------
+# Scored-retrieval fields (2.3.2): importance + embedding
+# ---------------------------------------------------------------------------
+
+
+def test_save_note_roundtrips_importance_and_embedding(mem: Memory) -> None:
+    cid = mem.save_conversation("transcript")
+    mem.save_note(cid, "summary", is_noteworthy=True, importance=0.8, embedding=[0.1, 0.2, 0.3])
+    note = mem.get_recent_notes(limit=1)[0]
+    assert note.importance == 0.8
+    assert note.embedding == [0.1, 0.2, 0.3]
+
+
+def test_save_note_defaults_importance_and_embedding_to_none(mem: Memory) -> None:
+    cid = mem.save_conversation("transcript")
+    mem.save_note(cid, "summary")
+    note = mem.get_recent_notes(limit=1)[0]
+    assert note.importance is None
+    assert note.embedding is None
+
+
+def test_get_notes_without_embedding(mem: Memory) -> None:
+    cid = mem.save_conversation("transcript")
+    mem.save_note(cid, "no vector", embedding=None)
+    mem.save_note(cid, "has vector", embedding=[1.0, 2.0])
+    pending = mem.get_notes_without_embedding()
+    summaries = [n.summary for n in pending]
+    assert "no vector" in summaries
+    assert "has vector" not in summaries
+
+
+def test_update_note_embedding(mem: Memory) -> None:
+    cid = mem.save_conversation("transcript")
+    nid = mem.save_note(cid, "summary")
+    mem.update_note_embedding(nid, [0.5, 0.6, 0.7])
+    note = mem.get_recent_notes(limit=1)[0]
+    assert note.embedding == [0.5, 0.6, 0.7]
+    assert mem.get_notes_without_embedding() == []
+
+
+def test_migration_adds_columns_to_legacy_db(tmp_path) -> None:
+    """A notes table created without the new columns is migrated on open."""
+    import sqlite3
+
+    db = tmp_path / "legacy.db"
+    conn = sqlite3.connect(db)
+    conn.executescript(
+        """
+        CREATE TABLE notes (
+            id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, summary TEXT NOT NULL,
+            is_noteworthy INTEGER DEFAULT 1, created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        INSERT INTO notes (id, conversation_id, summary) VALUES ('n1', 'c1', 'legacy note');
+        """
+    )
+    conn.commit()
+    conn.close()
+
+    m = Memory(db_path=str(db))
+    cols = {row["name"] for row in m._conn.execute("PRAGMA table_info(notes)")}
+    assert {"importance", "embedding"} <= cols
+    note = m.get_recent_notes(limit=1)[0]
+    assert note.summary == "legacy note"
+    assert note.importance is None and note.embedding is None
+    m.close()
