@@ -80,6 +80,13 @@ class ActionsConfig:
 class ObsidianConfig:
     vault_path: str = ""
     notes_folder: str = "assistant"
+    # GitHub-backed vault (for cloud deployments that can't reach a local vault).
+    # The backend writes daily markdown to this repo via the GitHub Contents API.
+    # ``github_repo`` is "owner/repo"; ``github_token`` is a secret injected via
+    # the AVIN_OBSIDIAN_GITHUB_TOKEN env var (never committed to YAML).
+    github_repo: str = ""
+    github_branch: str = "main"
+    github_token: str = ""
 
 
 @dataclass
@@ -149,6 +156,18 @@ def _apply_env_overrides(data: dict) -> None:
     if avin_api_keys is not None:
         keys = [k.strip() for k in avin_api_keys.split(",") if k.strip()]
         data.setdefault("api", {})["api_keys"] = keys
+
+    # --- Nested integrations.obsidian.* overrides (the generic loop below only
+    # handles flat single-level sections, so the GitHub-vault fields — and the
+    # token secret in particular — are injected explicitly here). ---
+    for env_name, obs_key in (
+        ("AVIN_OBSIDIAN_GITHUB_REPO", "github_repo"),
+        ("AVIN_OBSIDIAN_GITHUB_BRANCH", "github_branch"),
+        ("AVIN_OBSIDIAN_GITHUB_TOKEN", "github_token"),
+    ):
+        env_val = os.environ.get(env_name)
+        if env_val is not None:
+            data.setdefault("integrations", {}).setdefault("obsidian", {})[obs_key] = env_val
 
     # --- Generic scalar overrides ---
     for env_key, value in os.environ.items():
@@ -226,6 +245,9 @@ def _parse_config(data: dict) -> Config:
             obsidian=ObsidianConfig(
                 vault_path=str(obs_raw.get("vault_path", "")),
                 notes_folder=str(obs_raw.get("notes_folder", "assistant")),
+                github_repo=str(obs_raw.get("github_repo", "")),
+                github_branch=str(obs_raw.get("github_branch", "main")),
+                github_token=str(obs_raw.get("github_token", "")),
             ),
             google=GoogleIntegrationConfig(
                 oauth_credentials_path=str(goog_raw.get("oauth_credentials_path", "")),

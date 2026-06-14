@@ -50,8 +50,15 @@ actions:
 # --- Integrations (Stage 2) ---
 integrations:
   obsidian:
-    vault_path: ""            # Absolute path to Obsidian vault
+    vault_path: ""            # Absolute path to a LOCAL Obsidian vault (CLI use)
     notes_folder: "assistant" # Subfolder within vault for assistant notes
+    # GitHub-backed vault for cloud deployments (Cloud Run can't reach a local
+    # vault). The backend commits daily markdown to this repo via the Contents
+    # API; open the repo as an Obsidian vault to sync notes across devices.
+    github_repo: ""           # "owner/repo" of the vault repository
+    github_branch: "main"     # Branch to commit notes to
+    # github_token is a SECRET — never set it here. Inject at runtime via the
+    # AVIN_OBSIDIAN_GITHUB_TOKEN env var (fine-grained PAT, Contents:write).
   google:
     oauth_credentials_path: "" # Path to OAuth2 client secret JSON
 

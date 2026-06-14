@@ -41,12 +41,14 @@ router) so that ``app.dependency_overrides[get_memory]`` works from tests.
 from __future__ import annotations
 
 import contextlib
+import functools
 import hmac
 import json
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import anyio.to_thread
 import numpy as np
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
@@ -59,6 +61,7 @@ from .routes import get_memory
 
 if TYPE_CHECKING:
     from assistant.brain import Brain
+    from assistant.integrations.github_vault import GitHubVaultWriter
     from assistant.transcriber import Transcriber
     from assistant.vad import VADProcessor
 
@@ -114,6 +117,18 @@ def make_vad() -> VADProcessor:
     from assistant.vad import VADProcessor
 
     return VADProcessor()
+
+
+def make_vault_writer() -> GitHubVaultWriter:
+    """Return a :class:`~assistant.integrations.github_vault.GitHubVaultWriter`.
+
+    The pipeline only writes when ``writer.is_configured()`` is True (repo +
+    token present), so an unconfigured deployment silently skips it.  Monkeypatch
+    in tests to inject a fake writer.
+    """
+    from assistant.integrations.github_vault import GitHubVaultWriter
+
+    return GitHubVaultWriter()
 
 
 # ---------------------------------------------------------------------------
@@ -195,6 +210,23 @@ async def _run_pipeline(
                     "note_id": note.id,
                 },
             )
+
+            # --- Mirror the note into the GitHub-backed Obsidian vault ---
+            # Best-effort: a vault failure must never break the live pipeline,
+            # so errors are logged and swallowed. Skipped entirely when the
+            # vault is not configured (no repo/token).
+            writer = make_vault_writer()
+            if writer.is_configured():
+                try:
+                    await anyio.to_thread.run_sync(
+                        functools.partial(
+                            writer.write_note,
+                            note.summary,
+                            processing_result.actions,
+                        )
+                    )
+                except Exception:  # noqa: BLE001
+                    logger.exception("Obsidian (GitHub) vault write failed")
 
     # --- Send action messages — report only, never execute ---
     # We use get_pending_actions() to find actions that survived the
