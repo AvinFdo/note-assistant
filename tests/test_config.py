@@ -187,3 +187,20 @@ def test_singleton_is_config_instance() -> None:
 
     assert isinstance(config, Config)
     assert config.gcp.project_id != ""  # loaded from real default.yaml
+
+
+def test_retention_defaults(tmp_path: Path) -> None:
+    cfg = load_config(_write_yaml(tmp_path, _MINIMAL_YAML))
+    assert cfg.memory.retention.note_days == 0
+    assert cfg.memory.retention.keep_importance_above == 0.7
+
+
+def test_retention_block_parsed(tmp_path: Path) -> None:
+    data = dict(_MINIMAL_YAML)
+    data["memory"] = {
+        **_MINIMAL_YAML["memory"],
+        "retention": {"note_days": 30, "keep_importance_above": 0.5},
+    }
+    cfg = load_config(_write_yaml(tmp_path, data))
+    assert cfg.memory.retention.note_days == 30
+    assert cfg.memory.retention.keep_importance_above == 0.5

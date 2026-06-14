@@ -11,7 +11,7 @@ import json
 import sqlite3
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from assistant.config import config as _default_config
@@ -92,6 +92,7 @@ CREATE TABLE IF NOT EXISTS notes (
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
     importance      REAL,            -- 0..1 (LLM rating); NULL = unrated/legacy
     embedding       TEXT,            -- JSON float array; NULL = not yet embedded
+    expires_at      TEXT,            -- ISO 8601; NULL = never expires (retention)
     FOREIGN KEY (conversation_id) REFERENCES conversations(id)
 );
 
@@ -122,6 +123,25 @@ CREATE TABLE IF NOT EXISTS context_window (
 
 def _now() -> str:
     return datetime.now().isoformat()
+
+
+def compute_note_expiry(created_at: str, importance: float | None) -> str | None:
+    """Return an ISO expiry for a note per ``config.memory.retention``, or None.
+
+    Notes never expire when ``note_days <= 0`` or when their importance is at or
+    above ``keep_importance_above`` (so valuable notes are kept regardless of
+    age).  Shared by both memory backends.
+    """
+    rcfg = _default_config.memory.retention
+    if rcfg.note_days <= 0:
+        return None
+    if importance is not None and importance >= rcfg.keep_importance_above:
+        return None
+    try:
+        created = datetime.fromisoformat(created_at)
+    except (ValueError, TypeError):
+        created = datetime.now()
+    return (created + timedelta(days=rcfg.note_days)).isoformat()
 
 
 def _new_id() -> str:
@@ -164,6 +184,8 @@ class Memory:
             self._conn.execute("ALTER TABLE notes ADD COLUMN importance REAL")
         if "embedding" not in existing:
             self._conn.execute("ALTER TABLE notes ADD COLUMN embedding TEXT")
+        if "expires_at" not in existing:
+            self._conn.execute("ALTER TABLE notes ADD COLUMN expires_at TEXT")
 
     # ------------------------------------------------------------------
     # Conversations
@@ -229,21 +251,25 @@ class Memory:
         unrated / not-yet-embedded by the retrieval layer.
         """
         note_id = _new_id()
+        created = _now()
         embedding_json = json.dumps(embedding) if embedding is not None else None
+        expires_at = compute_note_expiry(created, importance)
         self._conn.execute(
             """
             INSERT INTO notes
-                (id, conversation_id, summary, is_noteworthy, created_at, importance, embedding)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                (id, conversation_id, summary, is_noteworthy, created_at,
+                 importance, embedding, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 note_id,
                 conversation_id,
                 summary,
                 1 if is_noteworthy else 0,
-                _now(),
+                created,
                 importance,
                 embedding_json,
+                expires_at,
             ),
         )
         self._conn.commit()
@@ -298,6 +324,16 @@ class Memory:
         cur = self._conn.execute("DELETE FROM notes WHERE id = ?", (note_id,))
         self._conn.commit()
         return cur.rowcount > 0
+
+    def purge_expired_notes(self, now: str | None = None) -> int:
+        """Delete notes whose ``expires_at`` is in the past. Returns the count removed."""
+        cutoff = now or _now()
+        cur = self._conn.execute(
+            "DELETE FROM notes WHERE expires_at IS NOT NULL AND expires_at < ?",
+            (cutoff,),
+        )
+        self._conn.commit()
+        return cur.rowcount
 
     def search_notes(self, query: str) -> list[Note]:
         """Return notes whose summary contains *query* (case-insensitive LIKE search).
