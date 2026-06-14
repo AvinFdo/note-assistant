@@ -309,3 +309,14 @@ def test_delete_note(mem):
     assert mem.count_notes() == 0
     assert mem.delete_note(nid) is False
     assert mem.delete_note("nonexistent") is False
+
+
+def test_purge_expired_notes(mem):
+    cid = mem.save_conversation("c")
+    expiring = mem.save_note(cid, "expiring")
+    mem._notes.document(expiring).update({"expires_at": "2000-01-01T00:00:00"})
+    mem.save_note(cid, "permanent")
+
+    removed = mem.purge_expired_notes()
+    assert removed == 1
+    assert [n.summary for n in mem.get_recent_notes()] == ["permanent"]

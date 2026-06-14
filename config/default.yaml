@@ -44,6 +44,9 @@ memory:
     weight_recency: 1.0
     weight_importance: 1.0
     weight_relevance: 1.0
+  retention:                  # Note cleanup policy (run via `python -m assistant.purge`)
+    note_days: 0              # expire notes N days after creation (0 = keep forever)
+    keep_importance_above: 0.7 # notes scoring >= this are never expired
 
 # --- Actions ---
 actions:

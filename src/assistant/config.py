@@ -64,6 +64,14 @@ class RetrievalConfig:
 
 
 @dataclass
+class RetentionConfig:
+    """Note retention policy (2.3.2 cleanup). ``note_days=0`` = keep forever."""
+
+    note_days: int = 0  # expire notes this many days after creation (0 = never)
+    keep_importance_above: float = 0.7  # notes scoring >= this are never expired
+
+
+@dataclass
 class MemoryConfig:
     db_path: str = "data/assistant.db"
     context_window_size: int = 5
@@ -75,6 +83,7 @@ class MemoryConfig:
     # is unchanged until the retrieval layer is switched on.
     embed_notes: bool = False
     retrieval: RetrievalConfig = field(default_factory=RetrievalConfig)
+    retention: RetentionConfig = field(default_factory=RetentionConfig)
 
 
 @dataclass
@@ -235,6 +244,15 @@ def _parse_retrieval(raw: object) -> RetrievalConfig:
     )
 
 
+def _parse_retention(raw: object) -> RetentionConfig:
+    if not isinstance(raw, dict):
+        return RetentionConfig()
+    return RetentionConfig(
+        note_days=int(raw.get("note_days", 0)),
+        keep_importance_above=float(raw.get("keep_importance_above", 0.7)),
+    )
+
+
 def _parse_action_mode(raw: object, default: str = "auto_execute") -> ActionModeConfig:
     if isinstance(raw, dict):
         return ActionModeConfig(mode=str(raw.get("mode", default)))
@@ -286,6 +304,7 @@ def _parse_config(data: dict) -> Config:
             backend=str(mem_raw.get("backend", "sqlite")),
             embed_notes=_as_bool(mem_raw.get("embed_notes", False)),
             retrieval=_parse_retrieval(mem_raw.get("retrieval", {})),
+            retention=_parse_retention(mem_raw.get("retention", {})),
         ),
         actions=ActionsConfig(
             confidence_threshold=float(act_raw.get("confidence_threshold", 0.7)),

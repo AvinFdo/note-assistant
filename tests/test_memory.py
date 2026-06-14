@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from datetime import datetime
 
 import pytest
 
@@ -647,3 +648,50 @@ def test_delete_note(mem: Memory) -> None:
     # Deleting again (or an unknown id) returns False.
     assert mem.delete_note(nid) is False
     assert mem.delete_note("nonexistent") is False
+
+
+# ---------------------------------------------------------------------------
+# Retention / purge (note cleanup)
+# ---------------------------------------------------------------------------
+
+
+def test_compute_note_expiry_disabled_by_default(monkeypatch) -> None:
+    import assistant.memory as mem_mod
+    from assistant.memory import compute_note_expiry
+
+    monkeypatch.setattr(mem_mod._default_config.memory.retention, "note_days", 0)
+    assert compute_note_expiry(datetime.now().isoformat(), 0.1) is None
+
+
+def test_compute_note_expiry_sets_when_enabled(monkeypatch) -> None:
+    import assistant.memory as mem_mod
+    from assistant.memory import compute_note_expiry
+
+    monkeypatch.setattr(mem_mod._default_config.memory.retention, "note_days", 30)
+    monkeypatch.setattr(mem_mod._default_config.memory.retention, "keep_importance_above", 0.7)
+    exp = compute_note_expiry(datetime(2026, 1, 1).isoformat(), importance=0.1)
+    assert exp == datetime(2026, 1, 31).isoformat()
+
+
+def test_compute_note_expiry_keeps_high_importance(monkeypatch) -> None:
+    import assistant.memory as mem_mod
+    from assistant.memory import compute_note_expiry
+
+    monkeypatch.setattr(mem_mod._default_config.memory.retention, "note_days", 30)
+    monkeypatch.setattr(mem_mod._default_config.memory.retention, "keep_importance_above", 0.7)
+    assert compute_note_expiry(datetime(2026, 1, 1).isoformat(), importance=0.9) is None
+
+
+def test_purge_expired_notes(mem: Memory) -> None:
+    cid = mem.save_conversation("c")
+    expiring = mem.save_note(cid, "expiring")
+    mem._conn.execute(
+        "UPDATE notes SET expires_at = ? WHERE id = ?", ("2000-01-01T00:00:00", expiring)
+    )
+    mem._conn.commit()
+    mem.save_note(cid, "permanent")  # expires_at NULL → never purged
+
+    removed = mem.purge_expired_notes()
+    assert removed == 1
+    remaining = [n.summary for n in mem.get_recent_notes()]
+    assert remaining == ["permanent"]

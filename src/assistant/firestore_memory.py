@@ -43,7 +43,7 @@ from typing import Any
 
 from assistant.config import config as _default_config
 from assistant.context_assembly import assemble_context_string
-from assistant.memory import Action, Conversation, Note
+from assistant.memory import Action, Conversation, Note, compute_note_expiry
 
 #: Conversations are retained this long; an ``expires_at`` field is written so a
 #: Firestore TTL policy (enabled out-of-band) can auto-delete old documents.
@@ -185,14 +185,16 @@ class FirestoreMemory:
         embedding: list[float] | None = None,
     ) -> str:
         note_id = _new_id()
+        created = _now()
         self._notes.document(note_id).set(
             {
                 "conversation_id": conversation_id,
                 "summary": summary,
                 "is_noteworthy": bool(is_noteworthy),
-                "created_at": _now(),
+                "created_at": created,
                 "importance": importance,
                 "embedding": embedding,
+                "expires_at": compute_note_expiry(created, importance),
             }
         )
         return note_id
@@ -237,6 +239,22 @@ class FirestoreMemory:
             return False
         ref.delete()
         return True
+
+    def purge_expired_notes(self, now: str | None = None) -> int:
+        """Delete notes whose ``expires_at`` is in the past. Returns the count removed.
+
+        Client-side filter (consistent with the other Firestore queries). For
+        scale, enable a native Firestore TTL policy on the notes ``expires_at``
+        field instead — this method then becomes a manual top-up.
+        """
+        cutoff = now or _now()
+        removed = 0
+        for d in self._docs(self._notes):
+            exp = d.get("expires_at")
+            if exp is not None and exp < cutoff:
+                self._notes.document(d["id"]).delete()
+                removed += 1
+        return removed
 
     # ------------------------------------------------------------------
     # Actions
