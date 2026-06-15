@@ -240,6 +240,45 @@ def test_search_notes_no_match(client):
     assert data["results"] == []
 
 
+def test_semantic_search_ranks_by_embedding(client, mem, monkeypatch):
+    """When embed_notes is on, search ranks by vector similarity, not keywords."""
+    import assistant.api.routes as routes_mod
+
+    monkeypatch.setattr(routes_mod.config.memory, "embed_notes", True)
+
+    cid = mem.save_conversation("c")
+    # Note whose words don't contain the query term, but whose vector matches.
+    mem.save_note(cid, "cost estimates for the quarter", embedding=[1.0, 0.0])
+    mem.save_note(cid, "lunch plans with Sam", embedding=[0.0, 1.0])
+
+    class _FakeEmbedder:
+        def embed_text(self, text):
+            return [1.0, 0.0]  # aligns with the "cost estimates" note
+
+    monkeypatch.setattr(routes_mod, "make_embedder", lambda: _FakeEmbedder())
+
+    resp = client.post("/api/v1/search", json={"query": "budget discussion"})
+    assert resp.status_code == 200
+    results = resp.json()["results"]
+    assert results[0]["summary"] == "cost estimates for the quarter"
+
+
+def test_semantic_search_falls_back_to_keyword_when_disabled(client, mem, monkeypatch):
+    """With embed_notes off (default), search must not call the embedder."""
+    import assistant.api.routes as routes_mod
+
+    monkeypatch.setattr(routes_mod.config.memory, "embed_notes", False)
+
+    def _boom():
+        raise AssertionError("embedder must not be constructed when embed_notes=False")
+
+    monkeypatch.setattr(routes_mod, "make_embedder", _boom)
+
+    resp = client.post("/api/v1/search", json={"query": "budget"})
+    assert resp.status_code == 200
+    assert len(resp.json()["results"]) == 1
+
+
 # ---------------------------------------------------------------------------
 # GET /api/v1/context
 # ---------------------------------------------------------------------------

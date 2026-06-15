@@ -16,12 +16,14 @@ that tests can override it with an in-memory fixture without patching globals.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Generator
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
-from assistant.memory import Memory
+from assistant.config import config
+from assistant.memory import Memory, Note
 from assistant.memory_factory import create_memory
 
 from .schemas import (
@@ -37,6 +39,8 @@ from .schemas import (
     SearchRequest,
     SearchResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Dependency
@@ -150,10 +154,46 @@ def update_action(
 # --- Search -----------------------------------------------------------------
 
 
+def make_embedder():
+    """Return an Embedder for query embedding (monkeypatched in tests).
+
+    Lazy import keeps the router importable without google-genai installed.
+    """
+    from assistant.embeddings import Embedder
+
+    return Embedder()
+
+
+def _semantic_search(memory: Memory, query: str, limit: int) -> list[Note] | None:
+    """Rank notes by embedding similarity to *query*.
+
+    Returns ``None`` (so the caller falls back to keyword search) when note
+    embedding is disabled, the query can't be embedded, or no note has a vector.
+    """
+    if not config.memory.embed_notes:
+        return None
+    try:
+        query_embedding = make_embedder().embed_text(query)
+    except Exception:  # noqa: BLE001
+        logger.warning("Semantic search embedding failed; falling back to keyword", exc_info=True)
+        return None
+
+    from assistant.retrieval import cosine_similarity
+
+    candidates = [n for n in memory.get_recent_notes(limit=_LARGE_LIMIT) if n.embedding]
+    if not candidates:
+        return None
+    candidates.sort(key=lambda n: cosine_similarity(query_embedding, n.embedding), reverse=True)
+    return candidates[:limit]
+
+
 @router.post("/search", response_model=SearchResponse)
 def search_notes(body: SearchRequest, memory: MemoryDep) -> SearchResponse:
-    """Full-text keyword search over note summaries."""
-    results = memory.search_notes(body.query)
+    """Search note summaries — semantic (by meaning) when embeddings are enabled,
+    otherwise a keyword substring match."""
+    results = _semantic_search(memory, body.query, limit=20)
+    if results is None:
+        results = memory.search_notes(body.query)
     return SearchResponse(results=[NoteOut.from_dataclass(n) for n in results])
 
 

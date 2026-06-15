@@ -1,7 +1,7 @@
 # Avin — Personal Assistant Backlog
 
 > [!IMPORTANT]
-> **🎯 Current Focus: Deploy the Cloudflare Worker + Pages frontend** _(Backend is LIVE on Cloud Run with Firestore + proxy-secret auth. Next: user deploys `worker/` (set PROXY_SECRET + BACKEND_URL) and `web/` to Pages, then test on phone. Remaining gated: OAuth (2.2.1–2.2.4/2.2.6), embeddings (2.3.2), billing/monitoring (2.4.3). 1.3.2 noise test needs human + mic.)_
+> **🎯 Current Focus: Google Workspace actions (2.2.1–2.2.6)** _(Full stack is LIVE end-to-end on the user's phone: Cloudflare Pages → Worker (proxy-secret) → Cloud Run + Firestore. Scored semantic retrieval (2.3.2) shipped + live. Notes: manual delete + retention/purge shipped. Next big gap: actions are detected but never executed — wire OAuth (2.2.1) then Calendar/Tasks/Gmail/Docs (email stays confirm-first). Also open: 2.4.3 billing/monitoring; Obsidian per-note-file vault refactor; 1.3.2 noise test needs human + mic.)_
 > Update this marker when you complete a task. Work top-to-bottom, respecting `Depends on:`.
 
 > [!NOTE]
@@ -609,7 +609,7 @@
 
 ---
 
-#### `[ ]` 2.3.2 — Add vector embeddings for semantic search
+#### `[x]` 2.3.2 — Add vector embeddings for semantic search _(Embedder via text-embedding-004; notes carry importance+embedding; scored context retrieval (recency+importance+relevance) wired behind memory.retrieval.mode; semantic /search with keyword fallback; backfill via `python -m assistant.backfill`. LIVE on Cloud Run via AVIN_MEMORY_EMBED_NOTES + AVIN_MEMORY_RETRIEVAL_MODE.)_
 **Context:** Keyword search (`LIKE '%query%'`) is brittle. Semantic search lets users find notes by meaning (e.g., searching "budget discussion" finds a note about "cost estimates").
 **Details:**
 - Use Vertex AI Embeddings API to generate embeddings for each note summary
