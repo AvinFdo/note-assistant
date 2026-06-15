@@ -154,6 +154,26 @@ async def _run_pipeline(
     transcriber: Transcriber,
     brain: Brain,
 ) -> None:
+    """Run the segment pipeline, then always delete the transient WAV.
+
+    Segment WAVs are throwaway (Cloud Run's disk is ephemeral and /tmp fills up
+    otherwise), so the file is removed in a finally regardless of how the
+    pipeline exits.
+    """
+    try:
+        await _pipeline_body(ws, wav_path, memory, transcriber, brain)
+    finally:
+        with contextlib.suppress(Exception):
+            wav_path.unlink(missing_ok=True)
+
+
+async def _pipeline_body(
+    ws: WebSocket,
+    wav_path: Path,
+    memory: Memory,
+    transcriber: Transcriber,
+    brain: Brain,
+) -> None:
     """Run transcription + brain processing for one completed WAV segment.
 
     1. Transcribe the WAV → send ``transcript`` message.
@@ -229,14 +249,18 @@ async def _run_pipeline(
                     logger.exception("Obsidian (GitHub) vault write failed")
 
     # --- Send action messages — report only, never execute ---
-    # We use get_pending_actions() to find actions that survived the
-    # confidence guardrail (high-confidence = status 'pending').
-    # confirm_first actions (e.g. send_email) are reported with
-    # needs_confirmation=True.  auto_execute actions are also reported
-    # with needs_confirmation=False.  Neither is executed here; the
-    # REST PATCH /actions/{id} flow handles execution so that the
-    # no-auto-send-email guardrail is never bypassed.
-    pending = memory.get_pending_actions()
+    # Scope to THIS conversation's pending actions (status 'pending' = survived
+    # the confidence guardrail; 'low_confidence' ones are excluded). Reporting
+    # all pending actions globally would re-surface stale actions from earlier
+    # conversations on every utterance. confirm_first actions (e.g. send_email)
+    # are reported with needs_confirmation=True; auto_execute with False. Neither
+    # is executed here — the REST PATCH /actions/{id} flow handles execution so
+    # the no-auto-send-email guardrail is never bypassed.
+    pending = (
+        [a for a in memory.get_actions_for_conversation(conversation_id) if a.status == "pending"]
+        if conversation_id
+        else []
+    )
     for action in pending:
         await _send_json(
             ws,
